@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Smart Factory AI — Admin Dashboard: AI Vision, Mode Control, Firebase Sync, Export Data">
+  <meta name="theme-color" content="#0f172a">
+  <title>Smart Factory AI — Admin</title>
+
+  <!-- Google Fonts: Poppins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Chart.js for distribution chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+  <!-- Guard: admin wajib lewat gerbang index (password) -->
+  <script>
+    try {
+      if (sessionStorage.getItem('sfai_admin') !== '1') {
+        window.location.replace('index.html');
+      }
+    } catch (e) {}
+  </script>
+
+  <!-- ================= HEADER ================= -->
+  <header class="app-header" id="appHeader">
+    <div class="brand-text" aria-label="Smart Factory AI">Smart<strong>Factory</strong> <span>AI</span></div>
+    <nav class="header-center" aria-label="Navigasi dashboard">
+      <!-- Animated gooey menu (dibalik: menggantung di bawah bar atas) -->
+      <menu class="topmenu" id="topmenu">
+        <button class="topmenu__item active" type="button" data-target="sec-kpi" style="--bgColorItem:#3b82f6;" aria-label="Ringkasan Kinerja">
+          <svg class="icon" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span class="topmenu__label">Ringkasan</span>
+        </button>
+
+        <button class="topmenu__item" type="button" data-target="sec-kamera" style="--bgColorItem:#10b981;" aria-label="Kamera AI">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M4,8h3l2-2.2h6L17,8h3c0.6,0,1,0.4,1,1v10c0,0.6-0.4,1-1,1H4c-0.6,0-1-0.4-1-1V9C3,8.4,3.4,8,4,8z"/>
+            <circle cx="12" cy="14" r="3.4"/>
+          </svg>
+          <span class="topmenu__label">Kamera</span>
+        </button>
+
+        <button class="topmenu__item" type="button" data-target="sec-mode" style="--bgColorItem:#f59e0b;" aria-label="Kontrol Mode">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M4,7.5h9"/>
+            <path d="M17.5,7.5H20"/>
+            <circle cx="15" cy="7.5" r="2.2"/>
+            <path d="M4,16.5h3.5"/>
+            <path d="M12,16.5h8"/>
+            <circle cx="9.5" cy="16.5" r="2.2"/>
+          </svg>
+          <span class="topmenu__label">Kontrol</span>
+        </button>
+
+        <button class="topmenu__item" type="button" data-target="sec-log" style="--bgColorItem:#8b5cf6;" aria-label="Log Transaksi">
+          <svg class="icon" viewBox="0 0 24 24">
+            <path d="M8.5,6H21"/>
+            <path d="M8.5,12H21"/>
+            <path d="M8.5,18H21"/>
+            <path d="M3.5,6h0.01"/>
+            <path d="M3.5,12h0.01"/>
+            <path d="M3.5,18h0.01"/>
+          </svg>
+          <span class="topmenu__label">Log</span>
+        </button>
+
+        <button class="topmenu__item" type="button" data-target="sec-koneksi" style="--bgColorItem:#64748b;" aria-label="Koneksi Database">
+          <svg class="icon" viewBox="0 0 24 24">
+            <rect x="6.5" y="6.5" width="11" height="11" rx="2"/>
+            <rect x="10" y="10" width="4" height="4"/>
+            <path d="M9,2.5v3M15,2.5v3M9,18.5v3M15,18.5v3M2.5,9h3M2.5,15h3M18.5,9h3M18.5,15h3"/>
+          </svg>
+          <span class="topmenu__label">Koneksi</span>
+        </button>
+
+        <button class="topmenu__item topmenu__action" type="button" data-action="logout" id="menuLogoutBtn" style="--bgColorItem:#f43f5e;" aria-label="Logout Admin">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="topmenu__label">Keluar</span>
+        </button>
+
+      </menu>
+    </nav>
+  </header>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="dashboard">
+
+    <!-- ---------- Ringkasan Kerja ---------- -->
+    <section class="panel kpi-panel" id="sec-kpi" aria-labelledby="kpiTitle">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2 id="kpiTitle">Ringkasan Kerja</h2>
+          <p class="panel-desc">Distribusi barang & tingkat keberhasilan real-time</p>
+        </div>
+        <span class="panel-tag"><span class="tag-pulse"></span>Real-Time</span>
+      </div>
+
+      <div class="kpi-summary">
+        <p class="kpi-total-line">Total diproses: <strong id="kpiTotal">0</strong> barang</p>
+        <p class="kpi-error-line">Error Rate: <strong id="kpiErrorRate">0%</strong></p>
+      </div>
+
+      <div class="dist-bars" id="distBars">
+        <div class="dist-col">
+          <span class="dist-count" id="kpiMerah">0</span>
+          <div class="dist-track"><div class="dist-fill fill-merah" id="barMerah"></div></div>
+          <div class="dist-rate"><span>Merah · Success Rate</span><strong id="rateMerah">0%</strong></div>
+        </div>
+        <div class="dist-col">
+          <span class="dist-count" id="kpiKuning">0</span>
+          <div class="dist-track"><div class="dist-fill fill-kuning" id="barKuning"></div></div>
+          <div class="dist-rate"><span>Kuning · Success Rate</span><strong id="rateKuning">0%</strong></div>
+        </div>
+        <div class="dist-col">
+          <span class="dist-count" id="kpiHitam">0</span>
+          <div class="dist-track"><div class="dist-fill fill-hitam" id="barHitam"></div></div>
+          <div class="dist-rate"><span>Hitam · Success Rate</span><strong id="rateHitam">0%</strong></div>
+        </div>
+        <div class="dist-col">
+          <span class="dist-count" id="kpiBiru">0</span>
+          <div class="dist-track"><div class="dist-fill fill-biru" id="barBiru"></div></div>
+          <div class="dist-rate"><span>Biru · Success Rate</span><strong id="rateBiru">0%</strong></div>
+        </div>
+      </div>
+      <!-- ID lama dipertahankan untuk kompatibilitas JS -->
+      <span class="hidden" id="kpiSuccessRate">0%</span>
+      <span class="hidden" id="kpiRecovered">0</span>
+      <span class="hidden" id="kpiModeRate">0%</span>
+      <span class="hidden" id="kpiModeLabel">Mode: Servo</span>
+    </section>
+
+    <!-- ---------- Row: Kamera + Chart ---------- -->
+    <div class="grid-two">
+
+    <!-- ---------- Area Kamera AI ---------- -->
+    <section class="panel camera-panel" id="sec-kamera" aria-labelledby="cameraTitle">
+        <div class="panel-head">
+          <div class="panel-title">
+            <h2 id="cameraTitle">Kamera AI</h2>
+            <p class="panel-desc">Deteksi dan klasifikasi barang secara real-time</p>
+          </div>
+          <span class="panel-tag live" id="aiStatusTag"><span class="tag-pulse"></span>Menunggu START</span>
+        </div>
+
+        <div class="camera-container" id="camera-container">
+          <!-- Video feed injected by ai-hardware.js -->
+          
+          <div class="viewfinder" aria-hidden="true">
+            <span class="vf-corner tl"></span>
+            <span class="vf-corner tr"></span>
+            <span class="vf-corner bl"></span>
+            <span class="vf-corner br"></span>
+            <span class="scanline"></span>
+          </div>
+          
+          <div class="vf-overlay-top">
+            <span class="rec"><span class="rec-dot"></span>REC</span>
+            <span class="cam-id">AI-CAM 01</span>
+          </div>
+          
+          <p class="vf-label" id="vfLabel">Klik START VISION untuk mengaktifkan kamera</p>
+          
+          <div class="vf-overlay-bottom">
+            <span>1080p</span>
+            <span class="sep"></span>
+            <span>30 FPS</span>
+            <span class="sep"></span>
+            <span>Auto-Focus</span>
+          </div>
+
+          <!-- Detection Box Overlay -->
+          <div class="detection-overlay" id="detectionOverlay" aria-hidden="true">
+            <div class="detect-box" id="detectBox">
+              <span class="detect-label" id="detectLabel"></span>
+              <span class="detect-confidence" id="detectConfidence"></span>
+              <div class="detect-arrow" id="detectArrow"></div>
+            </div>
+          </div>
+
+          <!-- AI Probability Bars -->
+          <div class="ai-probs" id="aiProbs" aria-label="Probabilitas kelas AI">
+            <!-- Populated by ai-hardware.js -->
+          </div>
+
+          <!-- Teachable Machine URL Input + START Button -->
+          <div class="tm-input-group" id="tmInputGroup">
+            <label class="tm-label" for="tmUrl">Teachable Machine Model URL</label>
+            <div class="tm-input-wrap">
+              <input type="url" id="tmUrl" class="tm-input" placeholder="https://teachablemachine.withgoogle.com/models/xxxxxx/" autocomplete="off">
+              <button type="button" class="tm-save-btn" id="tmSaveBtn" aria-label="Simpan URL Model">Simpan URL</button>
+            </div>
+            <button type="button" class="btn-start-vision" id="btnStartVision" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>START VISION</span>
+            </button>
+            <p class="tm-hint">Masukkan URL model Teachable Machine (Image Project), klik Simpan, lalu START VISION.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- Distribution Chart ---------- -->
+      <section class="panel chart-panel" aria-labelledby="chartTitle">
+        <div class="panel-head">
+          <div class="panel-title">
+            <h2 id="chartTitle">Distribusi Warna</h2>
+            <p class="panel-desc">Perbandingan jumlah per kelas (Servo vs Recovery)</p>
+          </div>
+        </div>
+
+        <div class="chart-comparison">
+          <div class="chart-box servo">
+            <div class="chart-box-head">
+              <span class="chart-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12,2.5v2.8M12,18.7v2.8M2.5,12h2.8M18.7,12h2.8M5.2,5.2l2,2M16.8,16.8l2,2M18.8,5.2l-2,2M7.2,16.8l-2,2"/></svg>
+              </span>
+              <h3>Servo Sorting</h3>
+            </div>
+            <canvas id="chartServo" height="180"></canvas>
+            <div class="chart-stats">
+              <div class="stat-item">
+                <span class="stat-value" id="statServoTotal">0</span>
+                <span class="stat-label">Total</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="statServoRate">0%</span>
+                <span class="stat-label">Success</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-box recovery">
+            <div class="chart-box-head">
+              <span class="chart-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              </span>
+              <h3>Robotic Recovery</h3>
+            </div>
+            <canvas id="chartRecovery" height="180"></canvas>
+            <div class="chart-stats">
+              <div class="stat-item">
+                <span class="stat-value" id="statRecoveryTotal">0</span>
+                <span class="stat-label">Total</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="statRecoveryRate">0%</span>
+                <span class="stat-label">Success</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ---------- Panel Kontroler Mode ---------- -->
+    <section class="panel control-panel" id="sec-mode" aria-labelledby="controlTitle">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2 id="controlTitle">Panel Kontroler Mode</h2>
+          <p class="panel-desc">Atur kecepatan dan metode pemilahan (sinkron ke hardware)</p>
+        </div>
+      </div>
+
+      <div class="mode-detail-grid">
+        <div class="mode-detail-card servo active" id="detailServo" data-mode="servo" role="button" tabindex="0" aria-pressed="true" aria-label="Aktifkan Mode 1 Fast Sorting">
+          <div class="mode-detail-head">
+            <span class="mode-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13,2L4.5,13.5H11L10,22L19.5,10.5H13L13,2z"/></svg>
+            </span>
+            <div>
+              <h3>Mode 1 — Fast Sorting (Servo)</h3>
+              <span class="mode-focus">Fokus: High Throughput</span>
+            </div>
+          </div>
+          <div class="flow-diagram">
+            <div class="flow-step">AI Detection</div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-step">Read Color</div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-branch">
+              <div class="branch">
+                <span class="branch-color kuning"></span>
+                <span>Kuning → SERVO → Y-Bin</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color hitam"></span>
+                <span>Hitam → SERVO → B-Bin</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color merah"></span>
+                <span>Merah → PASS</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color biru"></span>
+                <span>Biru → PASS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mode-detail-card recovery" id="detailRecovery" data-mode="recovery" role="button" tabindex="0" aria-pressed="false" aria-label="Aktifkan Mode 2 Robotic Recovery">
+          <div class="mode-detail-head">
+            <span class="mode-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            </span>
+            <div>
+              <h3>Mode 2 — Robotic Recovery</h3>
+              <span class="mode-focus">Fokus: Precision Handling</span>
+            </div>
+          </div>
+          <div class="flow-diagram">
+            <div class="flow-step">AI Detection</div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-step">Read Color</div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-branch">
+              <div class="branch">
+                <span class="branch-color kuning"></span>
+                <span>Kuning → IR → STOP → ARM → Y-Bin</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color hitam"></span>
+                <span>Hitam → IR → STOP → ARM → B-Bin</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color merah"></span>
+                <span>Merah → PASS</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color biru"></span>
+                <span>Biru → PASS</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="mode-hint" id="modeHint">Klik salah satu kartu mode di atas untuk mengubah perilaku AI & hardware secara real-time. Mode aktif: <strong id="activeModeName">Fast Sorting (Servo)</strong></p>
+    </section>
+
+    <!-- ---------- Tabel Log Real-time ---------- -->
+    <section class="panel log-panel" id="sec-log" aria-labelledby="logTitle">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2 id="logTitle">Log Transaksi Real-Time</h2>
+          <p class="panel-desc">Riwayat barang yang telah disortir (Closed-Loop QC)</p>
+        </div>
+        <div class="panel-actions">
+          <div class="export-wrap" id="exportWrap">
+            <button class="btn-export" id="btnExport" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="exportMenu">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Export</span>
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="export-menu" id="exportMenu" role="menu" aria-label="Pilih format export">
+              <p class="export-menu-title">Export ke…</p>
+              <button class="export-option" type="button" role="menuitem" data-format="pdf" id="btnExportPdf">
+                <span class="fmt-badge pdf">PDF</span>
+                <span class="fmt-text">PDF Dokumen<small>Berwarna, siap cetak</small></span>
+              </button>
+              <button class="export-option" type="button" role="menuitem" data-format="excel" id="btnExportExcel">
+                <span class="fmt-badge excel">XLSX</span>
+                <span class="fmt-text">Excel<small>File .xlsx asli & rapi</small></span>
+              </button>
+              <button class="export-option" type="button" role="menuitem" data-format="docs" id="btnExportDocs">
+                <span class="fmt-badge docs">DOC</span>
+                <span class="fmt-text">Docs<small>Rapi untuk Word / Docs</small></span>
+              </button>
+            </div>
+          </div>
+          <button class="btn-clear-db" id="btnClearDb" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <span>Reset DB</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th scope="col">Waktu</th>
+              <th scope="col">ID Barang</th>
+              <th scope="col">Kelas AI</th>
+              <th scope="col">Conf.</th>
+              <th scope="col">Mode</th>
+              <th scope="col">Aksi Hardware</th>
+              <th scope="col">Status QC</th>
+            </tr>
+          </thead>
+          <tbody id="logBody">
+            <tr>
+              <td colspan="7" class="empty-state">
+                <span class="empty-ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+                </span>
+                <span>Belum ada transaksi.<br>Data sortir akan tampil secara real-time di sini.</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- Koneksi Database (Admin Only) ---------- -->
+    <section class="panel conn-panel" id="sec-koneksi" aria-labelledby="connTitle">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2 id="connTitle">Koneksi Database</h2>
+          <p class="panel-desc">Khusus admin — sinkron Firebase untuk menyimpan log terpusat</p>
+        </div>
+        <span class="panel-tag" id="connTag">Lokal</span>
+      </div>
+
+      <div class="fb-config-group" id="fbConfigGroup">
+        <input type="password" id="fbKey" placeholder="Firebase API Key" class="fb-input" autocomplete="off">
+        <input type="text" id="fbUrl" placeholder="Database URL" class="fb-input" autocomplete="off">
+        <button class="btn-sync-fb" id="btnSyncFb" type="button">SYNC DB</button>
+      </div>
+      <p class="conn-note">Tanpa SYNC, seluruh data tersimpan lokal di browser (localStorage) dan tetap berfungsi penuh.</p>
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="app-footer">
+    <span>Smart Factory AI &copy; 2026 · Projek Kompetisi Robotik Internasional</span>
+    <button class="link-btn" id="reportBtn" type="button">Lapor Bug Hardware/Sistem</button>
+  </footer>
+
+  <!-- ================= TOAST NOTIFICATION ================= -->
+  <div class="toast-overlay" id="toastOverlay">
+    <div class="toast" id="toast">
+      <span class="toast-icon" id="toastIcon"></span>
+      <span class="toast-msg" id="toastMsg">System Initialized</span>
+    </div>
+  </div>
+
+  <!-- ================= MODAL LAPOR BUG ================= -->
+  <div class="modal-overlay hidden" id="bugModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bugModalTitle">
+      <div class="modal-header">
+        <h2 id="bugModalTitle">Lapor Bug Hardware/Sistem</h2>
+        <button class="modal-close" id="bugClose" type="button" aria-label="Tutup">&times;</button>
+      </div>
+      <form id="bugForm">
+        <div class="form-group">
+          <label for="bugCategory">Kategori Masalah</label>
+          <select id="bugCategory" required>
+            <option value="">-- Pilih Kategori --</option>
+            <option value="kamera">Masalah Kamera AI</option>
+            <option value="sensor">Masalah Sensor / Motor</option>
+            <option value="software">Masalah Software / Dashboard</option>
+            <option value="lainnya">Lainnya</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="bugDesc">Deskripsi Masalah</label>
+          <textarea id="bugDesc" rows="4" placeholder="Jelaskan kendala yang Anda temui..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="bugContact">Kontak Reporter (Opsional)</label>
+          <input type="text" id="bugContact" placeholder="Nama / Email / Telepon">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="bugCancel">Batal</button>
+          <button type="submit" class="btn-submit">Kirim Laporan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= LIBS ================= -->
+  <!-- TensorFlow.js + Teachable Machine -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+  <!-- jsPDF + AutoTable untuk Export PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- ExcelJS untuk Export Excel (.xlsx asli, berwarna) -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
+  <!-- App Scripts (modules) -->
+  <script type="module" src="firebase-config.js"></script>
+  <script type="module" src="app.js"></script>
+  <script type="module" src="ai-hardware.js"></script>
+</body>
+</html>

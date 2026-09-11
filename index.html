@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Smart Factory AI — Pilih mode masuk: Tamu atau Admin">
+  <meta name="theme-color" content="#0f172a">
+  <title>Smart Factory AI — Masuk</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <main class="gate">
+    <div class="gate-card">
+      <div class="gate-brand" aria-label="Smart Factory AI">Smart<strong>Factory</strong> <span>AI</span></div>
+      <p class="gate-sub">Revolutionizing manufacturing with artificial intelligence.</p>
+      <p class="gate-question">Masuk sebagai siapa?</p>
+
+      <div class="gate-options">
+        <button class="gate-btn guest" id="btnGuest" type="button">
+          <span class="gate-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <span class="gate-btn-text">Tamu<small>Lihat dashboard & live sorting</small></span>
+        </button>
+
+        <button class="gate-btn admin" id="btnAdmin" type="button" aria-expanded="false" aria-controls="adminLock">
+          <span class="gate-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </span>
+          <span class="gate-btn-text">Admin<small>Kamera AI, kontrol mode & database</small></span>
+        </button>
+      </div>
+
+      <div class="admin-lock" id="adminLock" hidden>
+        <label class="lock-label" for="adminPass">Password Admin</label>
+        <div class="lock-row">
+          <input type="password" id="adminPass" class="lock-input" placeholder="Masukkan password" autocomplete="off" inputmode="numeric">
+          <button type="button" class="lock-go" id="btnAdminGo">Masuk</button>
+        </div>
+        <p class="lock-err" id="lockErr" role="alert" hidden>Password salah, coba lagi.</p>
+      </div>
+    </div>
+
+    <p class="gate-foot">Smart Factory AI &copy; 2026 · Projek Kompetisi Robotik Internasional</p>
+  </main>
+
+  <script>
+    (function () {
+      var ADMIN_PASS = '098765';
+      var btnGuest = document.getElementById('btnGuest');
+      var btnAdmin = document.getElementById('btnAdmin');
+      var lock = document.getElementById('adminLock');
+      var pass = document.getElementById('adminPass');
+      var go = document.getElementById('btnAdminGo');
+      var err = document.getElementById('lockErr');
+
+      function setAdmin(on) {
+        try {
+          if (on) sessionStorage.setItem('sfai_admin', '1');
+          else sessionStorage.removeItem('sfai_admin');
+        } catch (e) {}
+      }
+
+      btnGuest.addEventListener('click', function () {
+        setAdmin(false);
+        window.location.href = 'tamu.html';
+      });
+
+      btnAdmin.addEventListener('click', function () {
+        var open = lock.hasAttribute('hidden');
+        if (open) {
+          lock.removeAttribute('hidden');
+          btnAdmin.setAttribute('aria-expanded', 'true');
+          btnAdmin.classList.add('active');
+          setTimeout(function () { pass.focus(); }, 60);
+        } else {
+          lock.setAttribute('hidden', '');
+          btnAdmin.setAttribute('aria-expanded', 'false');
+          btnAdmin.classList.remove('active');
+        }
+      });
+
+      function tryLogin() {
+        if ((pass.value || '').trim() === ADMIN_PASS) {
+          err.setAttribute('hidden', '');
+          setAdmin(true);
+          go.textContent = 'Berhasil…';
+          setTimeout(function () { window.location.href = 'admin.html'; }, 350);
+        } else {
+          err.removeAttribute('hidden');
+          lock.classList.remove('shake');
+          void lock.offsetWidth;
+          lock.classList.add('shake');
+          pass.select();
+        }
+      }
+
+      go.addEventListener('click', tryLogin);
+      pass.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') tryLogin();
+      });
+      pass.addEventListener('input', function () {
+        err.setAttribute('hidden', '');
+      });
+    })();
+  </script>
+</body>
+</html>
