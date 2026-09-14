@@ -6,12 +6,11 @@
 
 /* ---------- Mapping kelas Teachable Machine → Internal ----------
    Nama HARUS persis sama dengan label di Teachable Machine:
-   "Merah", "Kuning", "Hitam", "Biru"                            */
+   "Biru", "Kuning", "Silver"                            */
 const TM_CLASS_MAP = {
-  Merah:  { key: 'merah',  label: 'Merah',  color: '#ef4444' },
-  Kuning: { key: 'kuning', label: 'Kuning', color: '#facc15' },
-  Hitam:  { key: 'hitam',  label: 'Hitam',  color: '#94a3b8' },
-  Biru:   { key: 'biru',   label: 'Biru',   color: '#3b82f6' }
+  Biru:   { key: 'biru',   label: 'Biru',   color: '#0466c8' },
+  Kuning: { key: 'kuning', label: 'Kuning', color: '#ffee32' },
+  Silver: { key: 'silver', label: 'Silver', color: '#e9ecef' }
 };
 const EXPECTED_LABELS = Object.keys(TM_CLASS_MAP);
 
@@ -25,10 +24,9 @@ const MODES = {
     name: 'Fast Sorting (Servo)',
     desc: 'High Throughput',
     flow: {
-      Merah:  { step: 'PASS', type: 'pass' },
-      Kuning: { step: 'SERVO → Y-Bin', type: 'servo' },
-      Hitam:  { step: 'SERVO → B-Bin', type: 'servo' },
-      Biru:   { step: 'PASS', type: 'pass' }
+      Kuning: { step: 'SERVO → Bin A', type: 'servo' },
+      Biru:   { step: 'SERVO → Bin B', type: 'servo' },
+      Silver: { step: 'PASS', type: 'pass' }
     }
   },
   recovery: {
@@ -36,10 +34,9 @@ const MODES = {
     name: 'Robotic Recovery (Precision)',
     desc: 'Precision Handling',
     flow: {
-      Merah:  { step: 'PASS', type: 'pass' },
-      Kuning: { step: 'IR → STOP → ARM → Y-Bin', type: 'arm' },
-      Hitam:  { step: 'IR → STOP → ARM → B-Bin', type: 'arm' },
-      Biru:   { step: 'PASS', type: 'pass' }
+      Kuning: { step: 'IR → STOP → ARM → Bin A', type: 'arm' },
+      Biru:   { step: 'IR → STOP → ARM → Bin B', type: 'arm' },
+      Silver: { step: 'PASS', type: 'pass' }
     }
   }
 };
@@ -406,10 +403,9 @@ function handleDetection(className, confidence) {
 }
 
 function destFor(className) {
-  if (className === 'Kuning') return 'Yellow Bin';
-  if (className === 'Hitam') return 'Black Bin';
-  if (className === 'Merah') return 'Reject Bin';
-  return 'Pass-Through';
+  if (className === 'Kuning') return 'Bin A';
+  if (className === 'Biru') return 'Bin B';
+  return 'Pass';
 }
 
 /* Simulasi perintah ke hardware (ganti dengan Bluetooth saat robot siap) */

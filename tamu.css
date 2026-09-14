@@ -1,6 +1,7 @@
 /* ============================================================
    Smart Factory AI Dashboard — style.css
    Premium Soft Dark · Poppins · Mobile-first rapi
+   3 Warna Utama: Biru (#0466c8), Kuning (#ffee32), Silver (#e9ecef)
    ============================================================ */
 
 /* ---------- CSS Variables ---------- */
@@ -18,18 +19,38 @@
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
 
-  /* Aksen */
-  --primary: #3b82f6;
-  --primary-deep: #2563eb;
-  --primary-soft: rgba(59, 130, 246, 0.14);
-  --success: #10b981;
-  --success-soft: rgba(16, 185, 129, 0.14);
-  --danger: #f87171;
+  /* === 3 WARNA UTAMA (3 Balok) === */
+  /* Biru → Bin B */
+  --c-biru: #0466c8;
+  --c-biru-deep: #00296b;
+  --c-biru-soft: rgba(4, 102, 200, 0.14);
+  --c-biru-glow: rgba(4, 102, 200, 0.45);
 
-  /* Warna ikon kotak KPI */
-  --c-merah: #ef4444;
-  --c-kuning: #facc15;
-  --c-hitam: #334155;
+  /* Kuning → Bin A */
+  --c-kuning: #ffee32;
+  --c-kuning-deep: #e6d400;
+  --c-kuning-soft: rgba(255, 238, 50, 0.14);
+  --c-kuning-glow: rgba(255, 238, 50, 0.45);
+  --c-kuning-text: #1e293b;
+
+  /* Silver → Pass (Jalan Lurus) */
+  --c-silver: #e9ecef;
+  --c-silver-deep: #ced4da;
+  --c-silver-soft: rgba(233, 236, 239, 0.1);
+  --c-silver-text: #1e293b;
+
+  /* Aksen UI (dari palet saran) */
+  --primary: #0466c8;
+  --primary-deep: #00296b;
+  --primary-soft: rgba(4, 102, 200, 0.14);
+  --accent-purple: #5a189a;
+  --accent-purple-soft: rgba(90, 24, 154, 0.14);
+  --accent-orange: #f77f00;
+  --accent-orange-soft: rgba(247, 127, 0, 0.14);
+  --success: #38b000;
+  --success-soft: rgba(56, 176, 0, 0.14);
+  --danger: #6a040f;
+  --danger-soft: rgba(106, 4, 15, 0.12);
 
   /* Border, radius, shadow */
   --border: rgba(148, 163, 184, 0.16);
@@ -405,23 +426,24 @@ button {
 }
 
 .icon-total {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  box-shadow: 0 0 12px var(--primary-glow);
 }
 
-.icon-merah {
-  background: var(--c-merah);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
+.icon-biru {
+  background: var(--c-biru);
+  box-shadow: 0 0 12px var(--c-biru-glow);
 }
 
 .icon-kuning {
   background: var(--c-kuning);
-  box-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
+  box-shadow: 0 0 12px var(--c-kuning-glow);
 }
 
-.icon-hitam {
-  background: var(--c-hitam);
-  border: 1px solid rgba(148, 163, 184, 0.55);
+.icon-silver {
+  background: var(--c-silver);
+  box-shadow: 0 0 12px rgba(233, 236, 239, 0.3);
+  border: 1px solid var(--c-silver-deep);
 }
 
 /* ============================================================
@@ -585,9 +607,9 @@ button {
   flex-shrink: 0;
 }
 
-.dot.merah { background: var(--c-merah); box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
-.dot.kuning { background: var(--c-kuning); box-shadow: 0 0 8px rgba(250, 204, 21, 0.6); }
-.dot.hitam { background: #94a3b8; box-shadow: 0 0 8px rgba(148, 163, 184, 0.6); }
+.dot.biru { background: var(--c-biru); box-shadow: 0 0 8px var(--c-biru-glow); }
+.dot.kuning { background: var(--c-kuning); box-shadow: 0 0 8px var(--c-kuning-glow); }
+.dot.silver { background: var(--c-silver); box-shadow: 0 0 8px rgba(233, 236, 239, 0.6); }
 
 .mode-chip {
   font-size: 0.72rem;

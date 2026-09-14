@@ -1,6 +1,7 @@
 /* ============================================================
    Smart Factory AI — admin.css (Tampilan Admin)
    Premium Soft Dark · Poppins · Responsif HP
+   3 Warna Utama: Biru (#0466c8), Kuning (#ffee32), Silver (#e9ecef)
    ============================================================ */
 
 /* ---------- CSS Variables ---------- */
@@ -18,25 +19,42 @@
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
 
-  /* Aksen */
-  --primary: #3b82f6;
-  --primary-deep: #2563eb;
-  --primary-soft: rgba(59, 130, 246, 0.14);
-  --success: #10b981;
-  --danger: #f87171;
-  --danger-soft: rgba(248, 113, 113, 0.12);
-  --warning: #facc15;
-  --warning-soft: rgba(250, 204, 21, 0.12);
+  /* === 3 WARNA UTAMA (3 Balok) === */
+  /* Biru → Bin B */
+  --c-biru: #0466c8;
+  --c-biru-deep: #00296b;
+  --c-biru-soft: rgba(4, 102, 200, 0.14);
+  --c-biru-glow: rgba(4, 102, 200, 0.45);
 
-  /* Warna ikon kotak KPI */
-  --c-merah: #ef4444;
-  --c-kuning: #facc15;
-  --c-hitam: #334155;
-  --c-biru: #3b82f6;
+  /* Kuning → Bin A */
+  --c-kuning: #ffee32;
+  --c-kuning-deep: #e6d400;
+  --c-kuning-soft: rgba(255, 238, 50, 0.14);
+  --c-kuning-glow: rgba(255, 238, 50, 0.45);
+  --c-kuning-text: #1e293b;
+
+  /* Silver → Pass (Jalan Lurus) */
+  --c-silver: #e9ecef;
+  --c-silver-deep: #ced4da;
+  --c-silver-soft: rgba(233, 236, 239, 0.1);
+  --c-silver-text: #1e293b;
+
+  /* Aksen UI (dari palet saran) */
+  --primary: #0466c8;
+  --primary-deep: #00296b;
+  --primary-soft: rgba(4, 102, 200, 0.14);
+  --accent-purple: #5a189a;
+  --accent-purple-soft: rgba(90, 24, 154, 0.14);
+  --accent-orange: #f77f00;
+  --accent-orange-soft: rgba(247, 127, 0, 0.14);
+  --success: #38b000;
+  --success-soft: rgba(56, 176, 0, 0.14);
+  --danger: #6a040f;
+  --danger-soft: rgba(106, 4, 15, 0.12);
 
   /* Kamera */
   --cam-bg: #0b1120;
-  --cam-border: #1e3a8a;
+  --cam-border: #00296b;
 
   /* Border, radius, shadow */
   --border: rgba(148, 163, 184, 0.16);
@@ -49,6 +67,23 @@
   /* Tipografi & gerak */
   --font: 'Poppins', system-ui, -apple-system, sans-serif;
   --transition: 0.3s ease;
+}
+
+/* ---------- Light Theme Override ---------- */
+:root.light {
+  --bg-body: #f1f5f9;
+  --bg-header: rgba(255, 255, 255, 0.9);
+  --bg-panel: #ffffff;
+  --bg-panel-alt: #f1f5f9;
+  --bg-hover: #e2e8f0;
+  --bg-input: #f8fafc;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.18);
+  --shadow-panel: 0 12px 32px rgba(15, 23, 42, 0.1);
+  --shadow-card: 0 8px 22px rgba(15, 23, 42, 0.08);
 }
 
 /* ---------- Reset & Base ---------- */
@@ -913,28 +948,24 @@ button {
 }
 
 .icon-total {
-  background: linear-gradient(135deg, #70e000, #70e000);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
-}
-
-.icon-merah {
-  background: var(--c-merah);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.45);
-}
-
-.icon-kuning {
-  background: var(--c-kuning);
-  box-shadow: 0 0 12px rgba(250, 204, 21, 0.45);
-}
-
-.icon-hitam {
-  background: var(--c-hitam);
-  border: 1px solid rgba(148, 163, 184, 0.55);
+  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  box-shadow: 0 0 12px var(--primary-glow);
 }
 
 .icon-biru {
   background: var(--c-biru);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 12px var(--c-biru-glow);
+}
+
+.icon-kuning {
+  background: var(--c-kuning);
+  box-shadow: 0 0 12px var(--c-kuning-glow);
+}
+
+.icon-silver {
+  background: var(--c-silver);
+  box-shadow: 0 0 12px rgba(233, 236, 239, 0.3);
+  border: 1px solid var(--c-silver-deep);
 }
 
 /* ============================================================
@@ -1396,10 +1427,9 @@ button {
   flex-shrink: 0;
 }
 
-.dot.merah { background: var(--c-merah); box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
-.dot.kuning { background: var(--c-kuning); box-shadow: 0 0 8px rgba(250, 204, 21, 0.6); }
-.dot.hitam { background: #94a3b8; box-shadow: 0 0 8px rgba(148, 163, 184, 0.6); }
-.dot.biru { background: var(--c-biru); box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
+.dot.biru { background: var(--c-biru); box-shadow: 0 0 8px var(--c-biru-glow); }
+.dot.kuning { background: var(--c-kuning); box-shadow: 0 0 8px var(--c-kuning-glow); }
+.dot.silver { background: var(--c-silver); box-shadow: 0 0 8px rgba(233, 236, 239, 0.6); }
 
 .mode-chip {
   font-size: 0.72rem;
@@ -1420,11 +1450,11 @@ button {
   letter-spacing: 0.04em;
 }
 
-.action-chip.servo { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
-.action-chip.arm { background: rgba(248, 113, 113, 0.15); color: #fca5a5; border: 1px solid rgba(248, 113, 113, 0.3); }
-.action-chip.ir { background: rgba(250, 204, 21, 0.15); color: #fde047; border: 1px solid rgba(250, 204, 21, 0.3); }
-.action-chip.pass { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
-.action-chip.stop { background: rgba(248, 113, 113, 0.15); color: #fca5a5; border: 1px solid rgba(248, 113, 113, 0.3); }
+.action-chip.servo { background: var(--primary-soft); color: #93c5fd; border: 1px solid rgba(4, 102, 200, 0.3); }
+.action-chip.arm { background: var(--accent-purple-soft); color: #d6b4fc; border: 1px solid rgba(90, 24, 154, 0.3); }
+.action-chip.ir { background: var(--c-kuning-soft); color: var(--c-kuning-text); border: 1px solid rgba(255, 238, 50, 0.3); }
+.action-chip.pass { background: var(--success-soft); color: #86efac; border: 1px solid rgba(56, 176, 0, 0.3); }
+.action-chip.stop { background: var(--danger-soft); color: #fda4a4; border: 1px solid rgba(106, 4, 15, 0.3); }
 
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(-6px); }
@@ -1757,10 +1787,9 @@ button {
   flex-shrink: 0;
 }
 
-.branch-color.merah { background: var(--c-merah); }
-.branch-color.kuning { background: var(--c-kuning); }
-.branch-color.hitam { background: var(--c-hitam); border: 1px solid rgba(148,163,184,.5); }
 .branch-color.biru { background: var(--c-biru); }
+.branch-color.kuning { background: var(--c-kuning); }
+.branch-color.silver { background: var(--c-silver); border: 1px solid var(--c-silver-deep); }
 
 /* ============================================================
    PANEL ACTIONS (Export PDF / Reset DB)
@@ -2198,10 +2227,9 @@ body.light .camera-container {
   transition: height 0.9s cubic-bezier(0.34, 1.15, 0.64, 1);
 }
 
-.fill-merah { background: linear-gradient(180deg, #f87171, #ef4444); box-shadow: 0 0 16px rgba(239, 68, 68, 0.45); }
-.fill-kuning { background: linear-gradient(180deg, #fde047, #facc15); box-shadow: 0 0 16px rgba(250, 204, 21, 0.45); }
-.fill-hitam { background: linear-gradient(180deg, #64748b, #1e293b); box-shadow: 0 0 16px rgba(100, 116, 139, 0.4); }
-.fill-biru { background: linear-gradient(180deg, #60a5fa, #2563eb); box-shadow: 0 0 16px rgba(59, 130, 246, 0.45); }
+.fill-biru { background: linear-gradient(180deg, #3b82f6, var(--c-biru)); box-shadow: 0 0 16px var(--c-biru-glow); }
+.fill-kuning { background: linear-gradient(180deg, #fff366, var(--c-kuning)); box-shadow: 0 0 16px var(--c-kuning-glow); }
+.fill-silver { background: linear-gradient(180deg, #f1f3f5, var(--c-silver)); box-shadow: 0 0 16px rgba(233, 236, 239, 0.4); }
 
 .dist-rate {
   width: 100%;

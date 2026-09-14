@@ -28,8 +28,7 @@
         <span class="server-text">Database: <strong id="dbStatus">Connected</strong></span>
       </div>
 
-      <button class="btn-login" id="loginBtn" type="button">Login Admin</button>
-      <button class="btn-logout hidden" id="logoutBtn" type="button">Logout</button>
+      <button class="btn-login" id="loginBtn" type="button">Keluar</button>
     </div>
   </header>
 
@@ -57,13 +56,13 @@
           <span class="kpi-label">Total Barang Terproses</span>
         </article>
 
-        <article class="kpi-card kpi-merah">
+        <article class="kpi-card kpi-biru">
           <div class="kpi-top">
-            <span class="kpi-icon-box icon-merah" aria-hidden="true"></span>
+            <span class="kpi-icon-box icon-biru" aria-hidden="true"></span>
             <span class="kpi-trend">Live</span>
           </div>
-          <span class="kpi-value" id="kpiMerah">0</span>
-          <span class="kpi-label">Barang Merah</span>
+          <span class="kpi-value" id="kpiBiru">0</span>
+          <span class="kpi-label">Biru (Bin B)</span>
         </article>
 
         <article class="kpi-card kpi-kuning">
@@ -72,16 +71,16 @@
             <span class="kpi-trend">Live</span>
           </div>
           <span class="kpi-value" id="kpiKuning">0</span>
-          <span class="kpi-label">Barang Kuning</span>
+          <span class="kpi-label">Kuning (Bin A)</span>
         </article>
 
-        <article class="kpi-card kpi-hitam">
+        <article class="kpi-card kpi-silver">
           <div class="kpi-top">
-            <span class="kpi-icon-box icon-hitam" aria-hidden="true"></span>
+            <span class="kpi-icon-box icon-silver" aria-hidden="true"></span>
             <span class="kpi-trend">Live</span>
           </div>
-          <span class="kpi-value" id="kpiHitam">0</span>
-          <span class="kpi-label">Barang Hitam</span>
+          <span class="kpi-value" id="kpiSilver">0</span>
+          <span class="kpi-label">Silver (Pass)</span>
         </article>
 
       </div>
@@ -195,5 +194,10 @@
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="app.js"></script>
   <script type="module" src="ai-hardware.js"></script>
+  <script>
+    document.getElementById('loginBtn')?.addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+  </script>
 </body>
 </html>

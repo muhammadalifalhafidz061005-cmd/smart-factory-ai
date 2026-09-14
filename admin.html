@@ -34,7 +34,7 @@
     <nav class="header-center" aria-label="Navigasi dashboard">
       <!-- Animated gooey menu (dibalik: menggantung di bawah bar atas) -->
       <menu class="topmenu" id="topmenu">
-        <button class="topmenu__item active" type="button" data-target="sec-kpi" style="--bgColorItem:#3b82f6;" aria-label="Ringkasan Kinerja">
+        <button class="topmenu__item active" type="button" data-target="sec-kpi" style="--bgColorItem:#0466c8;" aria-label="Ringkasan Kinerja">
           <svg class="icon" viewBox="0 0 24 24">
             <rect x="3" y="3" width="7" height="7" rx="1.5"/>
             <rect x="14" y="3" width="7" height="7" rx="1.5"/>
@@ -44,7 +44,7 @@
           <span class="topmenu__label">Ringkasan</span>
         </button>
 
-        <button class="topmenu__item" type="button" data-target="sec-kamera" style="--bgColorItem:#10b981;" aria-label="Kamera AI">
+        <button class="topmenu__item" type="button" data-target="sec-kamera" style="--bgColorItem:#ffee32;" aria-label="Kamera AI">
           <svg class="icon" viewBox="0 0 24 24">
             <path d="M4,8h3l2-2.2h6L17,8h3c0.6,0,1,0.4,1,1v10c0,0.6-0.4,1-1,1H4c-0.6,0-1-0.4-1-1V9C3,8.4,3.4,8,4,8z"/>
             <circle cx="12" cy="14" r="3.4"/>
@@ -52,7 +52,7 @@
           <span class="topmenu__label">Kamera</span>
         </button>
 
-        <button class="topmenu__item" type="button" data-target="sec-mode" style="--bgColorItem:#f59e0b;" aria-label="Kontrol Mode">
+        <button class="topmenu__item" type="button" data-target="sec-mode" style="--bgColorItem:#5a189a;" aria-label="Kontrol Mode">
           <svg class="icon" viewBox="0 0 24 24">
             <path d="M4,7.5h9"/>
             <path d="M17.5,7.5H20"/>
@@ -64,7 +64,7 @@
           <span class="topmenu__label">Kontrol</span>
         </button>
 
-        <button class="topmenu__item" type="button" data-target="sec-log" style="--bgColorItem:#8b5cf6;" aria-label="Log Transaksi">
+        <button class="topmenu__item" type="button" data-target="sec-log" style="--bgColorItem:#f77f00;" aria-label="Log Transaksi">
           <svg class="icon" viewBox="0 0 24 24">
             <path d="M8.5,6H21"/>
             <path d="M8.5,12H21"/>
@@ -76,7 +76,7 @@
           <span class="topmenu__label">Log</span>
         </button>
 
-        <button class="topmenu__item" type="button" data-target="sec-koneksi" style="--bgColorItem:#64748b;" aria-label="Koneksi Database">
+        <button class="topmenu__item" type="button" data-target="sec-koneksi" style="--bgColorItem:#38b000;" aria-label="Koneksi Database">
           <svg class="icon" viewBox="0 0 24 24">
             <rect x="6.5" y="6.5" width="11" height="11" rx="2"/>
             <rect x="10" y="10" width="4" height="4"/>
@@ -85,7 +85,7 @@
           <span class="topmenu__label">Koneksi</span>
         </button>
 
-        <button class="topmenu__item topmenu__action" type="button" data-action="logout" id="menuLogoutBtn" style="--bgColorItem:#f43f5e;" aria-label="Logout Admin">
+        <button class="topmenu__item topmenu__action" type="button" data-action="logout" id="menuLogoutBtn" style="--bgColorItem:#6a040f;" aria-label="Logout Admin">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           <span class="topmenu__label">Keluar</span>
         </button>
@@ -114,24 +114,19 @@
 
       <div class="dist-bars" id="distBars">
         <div class="dist-col">
-          <span class="dist-count" id="kpiMerah">0</span>
-          <div class="dist-track"><div class="dist-fill fill-merah" id="barMerah"></div></div>
-          <div class="dist-rate"><span>Merah · Success Rate</span><strong id="rateMerah">0%</strong></div>
+          <span class="dist-count" id="kpiBiru">0</span>
+          <div class="dist-track"><div class="dist-fill fill-biru" id="barBiru"></div></div>
+          <div class="dist-rate"><span>Biru (Bin B) · Success Rate</span><strong id="rateBiru">0%</strong></div>
         </div>
         <div class="dist-col">
           <span class="dist-count" id="kpiKuning">0</span>
           <div class="dist-track"><div class="dist-fill fill-kuning" id="barKuning"></div></div>
-          <div class="dist-rate"><span>Kuning · Success Rate</span><strong id="rateKuning">0%</strong></div>
+          <div class="dist-rate"><span>Kuning (Bin A) · Success Rate</span><strong id="rateKuning">0%</strong></div>
         </div>
         <div class="dist-col">
-          <span class="dist-count" id="kpiHitam">0</span>
-          <div class="dist-track"><div class="dist-fill fill-hitam" id="barHitam"></div></div>
-          <div class="dist-rate"><span>Hitam · Success Rate</span><strong id="rateHitam">0%</strong></div>
-        </div>
-        <div class="dist-col">
-          <span class="dist-count" id="kpiBiru">0</span>
-          <div class="dist-track"><div class="dist-fill fill-biru" id="barBiru"></div></div>
-          <div class="dist-rate"><span>Biru · Success Rate</span><strong id="rateBiru">0%</strong></div>
+          <span class="dist-count" id="kpiSilver">0</span>
+          <div class="dist-track"><div class="dist-fill fill-silver" id="barSilver"></div></div>
+          <div class="dist-rate"><span>Silver (Pass) · Success Rate</span><strong id="rateSilver">0%</strong></div>
         </div>
       </div>
       <!-- ID lama dipertahankan untuk kompatibilitas JS -->
@@ -292,19 +287,15 @@
             <div class="flow-branch">
               <div class="branch">
                 <span class="branch-color kuning"></span>
-                <span>Kuning → SERVO → Y-Bin</span>
-              </div>
-              <div class="branch">
-                <span class="branch-color hitam"></span>
-                <span>Hitam → SERVO → B-Bin</span>
-              </div>
-              <div class="branch">
-                <span class="branch-color merah"></span>
-                <span>Merah → PASS</span>
+                <span>Kuning → SERVO → Bin A</span>
               </div>
               <div class="branch">
                 <span class="branch-color biru"></span>
-                <span>Biru → PASS</span>
+                <span>Biru → SERVO → Bin B</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color silver"></span>
+                <span>Silver → PASS</span>
               </div>
             </div>
           </div>
@@ -328,19 +319,15 @@
             <div class="flow-branch">
               <div class="branch">
                 <span class="branch-color kuning"></span>
-                <span>Kuning → IR → STOP → ARM → Y-Bin</span>
-              </div>
-              <div class="branch">
-                <span class="branch-color hitam"></span>
-                <span>Hitam → IR → STOP → ARM → B-Bin</span>
-              </div>
-              <div class="branch">
-                <span class="branch-color merah"></span>
-                <span>Merah → PASS</span>
+                <span>Kuning → IR → STOP → ARM → Bin A</span>
               </div>
               <div class="branch">
                 <span class="branch-color biru"></span>
-                <span>Biru → PASS</span>
+                <span>Biru → IR → STOP → ARM → Bin B</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color silver"></span>
+                <span>Silver → PASS</span>
               </div>
             </div>
           </div>
