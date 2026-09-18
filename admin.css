@@ -1,7 +1,7 @@
 /* ============================================================
    Smart Factory AI — admin.css (Tampilan Admin)
    Premium Soft Dark · Poppins · Responsif HP
-   3 Warna Utama: Biru (#0466c8), Kuning (#ffee32), Silver (#e9ecef)
+   3 Warna Utama: Biru (#0466c8), Kuning (#ffee32), Merah (#ef4444)
    ============================================================ */
 
 /* ---------- CSS Variables ---------- */
@@ -33,11 +33,11 @@
   --c-kuning-glow: rgba(255, 238, 50, 0.45);
   --c-kuning-text: #1e293b;
 
-  /* Silver → Pass (Jalan Lurus) */
-  --c-silver: #e9ecef;
-  --c-silver-deep: #ced4da;
-  --c-silver-soft: rgba(233, 236, 239, 0.1);
-  --c-silver-text: #1e293b;
+  /* Merah (Tolak / Reject) */
+  --c-merah: #ef4444;
+  --c-merah-deep: #dc2626;
+  --c-merah-soft: rgba(239, 68, 68, 0.1);
+  --c-merah-text: #ffffff;
 
   /* Aksen UI (dari palet saran) */
   --primary: #0466c8;
@@ -962,10 +962,10 @@ button {
   box-shadow: 0 0 12px var(--c-kuning-glow);
 }
 
-.icon-silver {
-  background: var(--c-silver);
-  box-shadow: 0 0 12px rgba(233, 236, 239, 0.3);
-  border: 1px solid var(--c-silver-deep);
+.icon-merah {
+  background: var(--c-merah);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+  border: 1px solid var(--c-merah-deep);
 }
 
 /* ============================================================
@@ -1429,7 +1429,7 @@ button {
 
 .dot.biru { background: var(--c-biru); box-shadow: 0 0 8px var(--c-biru-glow); }
 .dot.kuning { background: var(--c-kuning); box-shadow: 0 0 8px var(--c-kuning-glow); }
-.dot.silver { background: var(--c-silver); box-shadow: 0 0 8px rgba(233, 236, 239, 0.6); }
+.dot.merah { background: var(--c-merah); box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
 
 .mode-chip {
   font-size: 0.72rem;
@@ -1511,17 +1511,35 @@ button {
 
 .chart-stats {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .stat-item {
-  flex: 1;
+  flex: 1 1 90px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   padding: 10px 12px;
   border-radius: 10px;
   background: var(--bg-panel-alt);
   border: 1px solid var(--border);
+}
+
+.stat-item.stat-ok {
+  border-color: rgba(56, 176, 0, 0.45);
+}
+
+.stat-item.stat-ok .stat-value {
+  color: #7bf1a8;
+}
+
+.stat-item.stat-bad {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.stat-item.stat-bad .stat-value {
+  color: #fca5a5;
 }
 
 .stat-value {
@@ -1589,7 +1607,107 @@ button {
   flex-shrink: 0;
 }
 
-/* Bar probabilitas tiap kelas */
+/* ============================================================
+   BLUETOOTH CONNECT BUTTON (solid blue, hover cyan)
+   ============================================================ */
+.nav-connect {
+  width: 100%;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 14px;
+  background: #0466c8;
+  color: #fff;
+  font-weight: 700;
+  font-size: .92rem;
+  cursor: pointer;
+  transition: all .3s cubic-bezier(.22,1,.36,1);
+  box-shadow: 0 8px 24px rgba(4,102,200,.35), 0 4px 12px rgba(4,102,200,.25);
+  position: relative;
+  overflow: hidden;
+  letter-spacing: .2px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.nav-connect::after { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.18), transparent 60%); opacity: 0; transition: opacity .3s }
+.nav-connect:hover::after { opacity: 1 }
+.nav-connect:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 12px 32px rgba(4,102,200,.45), 0 6px 16px rgba(0,255,255,.35); background: #00ffff; }
+.nav-connect:active { transform: scale(.97) }
+.nav-connect.disconnect { background: #ef4444; box-shadow: 0 8px 24px rgba(239,68,68,.35) }
+.nav-connect.disconnect:hover { box-shadow: 0 12px 32px rgba(239,68,68,.45) }
+
+/* ============================================================
+   BT STATUS INDICATORS
+   ============================================================ */
+.bt-status { display: inline-flex; align-items: center; gap: 8px; font-size: .78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 14px; padding: 6px 12px; border-radius: 999px; background: rgba(0,0,0,.2); border: 1px solid var(--border) }
+.bt-status .s-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 10px var(--red-glow) }
+.bt-status.connected .s-dot { background: var(--green); box-shadow: 0 0 12px var(--green-glow); animation: pulseDot 2s infinite }
+.bt-card .nav-connect { max-width: 360px; margin: 0 auto; display: block }
+
+.indic { flex: 1; min-width: 110px; padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,.2); border: 1px solid var(--border); text-align: center }
+.indic .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle }
+.indic strong { font-size: .78rem }
+.indic span { font-size: .68rem; color: var(--text-tertiary); display: block; margin-top: 2px }
+.indic.ok { border-color: rgba(16,185,129,.3) }
+.indic.ok .dot { background: var(--green); box-shadow: 0 0 8px var(--green-glow) }
+.indic.bad { border-color: rgba(239,68,68,.3) }
+.indic.bad .dot { background: var(--red) }
+
+/* ============================================================
+   CAMERA STATUS
+   ============================================================ */
+.cam-status.waiting { color: var(--text-secondary); border-style: dashed }
+.cam-status.active-merah { color: #fca5a5; background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.25); box-shadow: 0 0 20px rgba(239,68,68,.15) }
+.cam-status.active-biru { color: #93c5fd; background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.25); box-shadow: 0 0 20px rgba(59,130,246,.15) }
+.cam-status.active-kuning { color: #fde68a; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.25); box-shadow: 0 0 20px rgba(245,158,11,.15) }
+.cam-status.error { color: #fca5a5; background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.4); animation: shake .4s }
+
+.cam-badge { position: absolute; top: 10px; left: 10px; display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,.55); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.12); padding: 5px 10px; border-radius: 999px; font-size: .68rem; font-weight: 700; letter-spacing: .5px; color: #fff }
+.cam-badge .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 8px var(--red-glow) }
+.cam-badge.live .live-dot { background: var(--green); box-shadow: 0 0 8px var(--green-glow); animation: pulseDot 1.5s infinite }
+
+.cam-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px }
+.cam-btn { flex: 1; min-width: 80px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: .78rem; font-weight: 600; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px }
+.cam-btn:hover { background: var(--surface-hover); transform: translateY(-1px) }
+.cam-btn.merah:hover { border-color: rgba(239,68,68,.4); color: #fca5a5 }
+.cam-btn.biru:hover { border-color: rgba(59,130,246,.4); color: #93c5fd }
+.cam-btn.kuning:hover { border-color: rgba(245,158,11,.4); color: #fde68a }
+.cam-btn.start { background: linear-gradient(135deg,var(--blue),var(--purple)); color: #fff; border-color: transparent; box-shadow: 0 4px 16px var(--blue-glow) }
+.cam-btn.start:hover { transform: translateY(-1px) scale(1.02) }
+
+/* ============================================================
+   MATCH RESULT DISPLAY
+   ============================================================ */
+.match-hero { display: flex; align-items: center; gap: 12px; margin-bottom: 14px }
+.match-icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; flex-shrink: 0; background: rgba(255,255,255,.04); border: 1px solid var(--border); transition: all .3s }
+.match-icon.success { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.3); box-shadow: 0 0 20px rgba(16,185,129,.3) }
+.match-icon.error { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); box-shadow: 0 0 20px rgba(239,68,68,.3); animation: shake .4s ease }
+.match-icon.timeout { background: rgba(245,158,11,.15); border-color: rgba(245,158,11,.3); box-shadow: 0 0 20px rgba(245,158,11,.25); animation: shake .4s ease }
+@keyframes shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-4px) } 75% { transform: translateX(4px) } }
+.match-icon svg { width: 26px; height: 26px; stroke: var(--text-tertiary); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round }
+.match-icon.success svg { stroke: #10b981 }
+.match-icon.error svg { stroke: #ef4444 }
+.match-icon.timeout svg { stroke: #f59e0b }
+.match-text h4 { font-size: .92rem; font-weight: 700; letter-spacing: -.2px }
+.match-text p { font-size: .75rem; color: var(--text-secondary); margin-top: 2px }
+.score-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 12px }
+.score-box { background: rgba(0,0,0,.2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; text-align: center }
+.score-box strong { font-size: 1.45rem; font-weight: 800; display: block; line-height: 1 }
+.score-box span { font-size: .62rem; letter-spacing: .9px; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; margin-top: 4px; display: block }
+.score-box.success strong { color: #34d399 }
+.score-box.error strong { color: #f87171 }
+.score-box.timeout strong { color: #fbbf24 }
+.match-detail { padding: 10px 12px; border-radius: 10px; background: rgba(0,0,0,.2); border: 1px solid var(--border); font-size: .76rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap }
+.match-detail strong { color: var(--text) }
+.badge { font-size: .68rem; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border) }
+.badge.idle { color: var(--text-tertiary); background: rgba(255,255,255,.03) }
+.badge.success { color: #6ee7b7; background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.3); box-shadow: 0 0 12px rgba(16,185,129,.25) }
+.badge.error { color: #fca5a5; background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); box-shadow: 0 0 12px rgba(239,68,68,.25) }
+.badge.timeout { color: #fde68a; background: rgba(245,158,11,.15); border-color: rgba(245,158,11,.3); box-shadow: 0 0 12px rgba(245,158,11,.2) }
+.badge.waiting { color: #fde68a; background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.25) }
+
+/* ============================================================
+   BAR PROBABILITAS TIAP KELAS
+   ============================================================ */
 .ai-probs {
   position: absolute;
   top: 52px;
@@ -1789,7 +1907,7 @@ button {
 
 .branch-color.biru { background: var(--c-biru); }
 .branch-color.kuning { background: var(--c-kuning); }
-.branch-color.silver { background: var(--c-silver); border: 1px solid var(--c-silver-deep); }
+.branch-color.merah { background: var(--c-merah); border: 1px solid var(--c-merah-deep); }
 
 /* ============================================================
    PANEL ACTIONS (Export PDF / Reset DB)
@@ -2186,7 +2304,7 @@ body.light .camera-container {
 
 .dist-bars {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   align-items: stretch;
 }
@@ -2209,27 +2327,74 @@ body.light .camera-container {
 
 .dist-track {
   width: 100%;
-  height: 148px;
+  height: 120px;
   border-radius: 12px;
   background: rgba(148, 163, 184, 0.1);
   border: 1px solid var(--border);
   display: flex;
   align-items: flex-end;
+  gap: 6px;
   overflow: hidden;
-  padding: 6px;
+  padding: 4px;
+}
+
+.dist-track > div {
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
 }
 
 .dist-fill {
-  width: 100%;
-  height: 8%;
-  min-height: 12px;
+  height: 12%;
+  min-height: 10px;
   border-radius: 7px;
   transition: height 0.9s cubic-bezier(0.34, 1.15, 0.64, 1);
+  background: var(--c-kuning);
 }
+
+.dist-err {
+  height: 12%;
+  min-height: 10px;
+  border-radius: 7px;
+  background: transparent;
+  border: 1.5px dashed rgba(248, 113, 113, 0.45);
+  transition: height 0.9s cubic-bezier(0.34, 1.15, 0.64, 1), background 0.3s, border 0.3s, box-shadow 0.3s;
+}
+
+.dist-err.has-err {
+  background: linear-gradient(180deg, #ff8a8a, #6a040f);
+  border: 1.5px solid rgba(248, 113, 113, 0.8);
+  box-shadow: 0 0 16px rgba(220, 38, 38, 0.65);
+}
+
+.dist-legend {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 10px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.dist-legend .lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lg-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.lg-ok { background: linear-gradient(135deg, #ffee32, #0466c8); }
+.lg-bad { background: linear-gradient(180deg, #f87171, #6a040f); }
 
 .fill-biru { background: linear-gradient(180deg, #3b82f6, var(--c-biru)); box-shadow: 0 0 16px var(--c-biru-glow); }
 .fill-kuning { background: linear-gradient(180deg, #fff366, var(--c-kuning)); box-shadow: 0 0 16px var(--c-kuning-glow); }
-.fill-silver { background: linear-gradient(180deg, #f1f3f5, var(--c-silver)); box-shadow: 0 0 16px rgba(233, 236, 239, 0.4); }
+.fill-merah { background: linear-gradient(180deg, #ff6b6b, var(--c-merah)); box-shadow: 0 0 16px rgba(239, 68, 68, 0.4); }
 
 .dist-rate {
   width: 100%;
@@ -2260,6 +2425,114 @@ body.light .camera-container {
   color: #fff;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
+}
+
+.kpi-match-line {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.kpi-match-line strong {
+  color: #7bf1a8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   QC TERAKHIR — Kamera vs micro:bit (rapi di HP)
+   ============================================================ */
+.qc-match {
+  margin-top: 16px;
+  background: #0b1220;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.qc-title {
+  margin: 0 0 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.qc-title span {
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.qc-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.qc-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: rgba(148, 163, 184, 0.07);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 8px;
+  min-width: 0;
+}
+
+.qc-cap {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.qc-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  word-break: break-word;
+  text-align: center;
+}
+
+.qc-mid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qc-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 4px 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.qc-badge.idle { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.35); }
+.qc-badge.wait { background: var(--c-kuning-soft); color: var(--c-kuning); border-color: rgba(255, 238, 50, 0.4); }
+.qc-badge.ok { background: rgba(56, 176, 0, 0.16); color: #7bf1a8; border-color: rgba(56, 176, 0, 0.45); box-shadow: 0 0 12px rgba(56, 176, 0, 0.25); }
+.qc-badge.err { background: rgba(106, 4, 15, 0.35); color: #fca5a5; border-color: rgba(248, 113, 113, 0.5); box-shadow: 0 0 12px rgba(106, 4, 15, 0.4); }
+
+.qc-sub {
+  margin: 10px 0 0;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.qc-sub strong {
+  color: #fff;
+  font-size: 0.85rem;
 }
 
 /* ============================================================
@@ -2576,8 +2849,37 @@ body.light .camera-container {
   }
 
   .dist-bars {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .qc-match {
+    padding: 12px 10px;
+  }
+
+  .qc-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .qc-mid {
+    padding: 2px 0;
+  }
+
+  .qc-val {
+    font-size: 0.85rem;
+  }
+
+  .dist-rate {
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 6px;
+  }
+
+  .dist-rate span {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
   }
 
   .dist-track {

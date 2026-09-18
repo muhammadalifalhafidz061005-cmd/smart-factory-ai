@@ -1,7 +1,7 @@
 /* ============================================================
    Smart Factory AI Dashboard — style.css
    Premium Soft Dark · Poppins · Mobile-first rapi
-   3 Warna Utama: Biru (#0466c8), Kuning (#ffee32), Silver (#e9ecef)
+   3 Warna Utama: Biru (#0466c8), Kuning (#ffee32), Merah (#ef4444)
    ============================================================ */
 
 /* ---------- CSS Variables ---------- */
@@ -33,11 +33,11 @@
   --c-kuning-glow: rgba(255, 238, 50, 0.45);
   --c-kuning-text: #1e293b;
 
-  /* Silver → Pass (Jalan Lurus) */
-  --c-silver: #e9ecef;
-  --c-silver-deep: #ced4da;
-  --c-silver-soft: rgba(233, 236, 239, 0.1);
-  --c-silver-text: #1e293b;
+  /* Merah (Tolak / Reject) */
+  --c-merah: #ef4444;
+  --c-merah-deep: #dc2626;
+  --c-merah-soft: rgba(239, 68, 68, 0.1);
+  --c-merah-text: #ffffff;
 
   /* Aksen UI (dari palet saran) */
   --primary: #0466c8;
@@ -440,10 +440,10 @@ button {
   box-shadow: 0 0 12px var(--c-kuning-glow);
 }
 
-.icon-silver {
-  background: var(--c-silver);
-  box-shadow: 0 0 12px rgba(233, 236, 239, 0.3);
-  border: 1px solid var(--c-silver-deep);
+.icon-merah {
+  background: var(--c-merah);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+  border: 1px solid var(--c-merah-deep);
 }
 
 /* ============================================================
@@ -609,7 +609,7 @@ button {
 
 .dot.biru { background: var(--c-biru); box-shadow: 0 0 8px var(--c-biru-glow); }
 .dot.kuning { background: var(--c-kuning); box-shadow: 0 0 8px var(--c-kuning-glow); }
-.dot.silver { background: var(--c-silver); box-shadow: 0 0 8px rgba(233, 236, 239, 0.6); }
+.dot.merah { background: var(--c-merah); box-shadow: 0 0 8px rgba(239, 68, 68, 0.6); }
 
 .mode-chip {
   font-size: 0.72rem;

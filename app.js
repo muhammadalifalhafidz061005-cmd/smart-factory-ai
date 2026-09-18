@@ -140,8 +140,8 @@ const MAX_LOG_ROWS = 50;
 const transactions = [];
 const stats = {
   total: 0, success: 0, miss: 0,
-  servo: { total: 0, success: 0, dist: { biru: 0, kuning: 0, silver: 0 } },
-  recovery: { total: 0, success: 0, dist: { biru: 0, kuning: 0, silver: 0 } }
+  servo: { total: 0, success: 0, dist: { biru: 0, kuning: 0, merah: 0 } },
+  recovery: { total: 0, success: 0, dist: { biru: 0, kuning: 0, merah: 0 } }
 };
 let currentMode = 'servo';
 const MODE_NAMES = {
@@ -151,7 +151,7 @@ const MODE_NAMES = {
   thinking: 'Thinking Sorting',
   hybrid: 'Hybrid Mode'
 };
-const DOT_COLORS = { biru: '#0466c8', kuning: '#ffee32', silver: '#e9ecef' };
+const DOT_COLORS = { biru: '#0466c8', kuning: '#ffee32', merah: '#ff5f5f' };
 
 function setLed(id, state) {
   const el = document.getElementById(id);
@@ -181,11 +181,15 @@ function fmtTime(iso) {
   } catch { return '-'; }
 }
 
-/* ---------- Tabel log (7 kolom) ---------- */
+/* ---------- Tabel log (8 kolom: + Sensor Bin micro:bit) ---------- */
+const BIN_DOT_COLORS = { 'bin-kuning': '#ffee32', 'bin-merah': '#ef4444', 'bin-biru': '#0466c8', pass: '#0466c8', timeout: '#f77f00' };
 function rowHtml(p) {
   const dot = DOT_COLORS[p.color] || '#94a3b8';
   const cap = p.color ? p.color.charAt(0).toUpperCase() + p.color.slice(1) : '-';
   const badge = p.result === 'Success' ? 'badge-ok' : (p.result === 'Miss-sort' ? 'badge-err' : 'badge-pending');
+  const sBin = p.sensorBin || null;
+  const sLabel = p.sensorLabel || (p.result === 'Pending' ? 'Menunggu sensor…' : '-');
+  const sDot = BIN_DOT_COLORS[sBin] || '#94a3b8';
   return (
     '<td>' + fmtTime(p.timestamp) + '</td>' +
     '<td><code class="tx-id">' + (p.id || '-') + '</code></td>' +
@@ -193,6 +197,7 @@ function rowHtml(p) {
     '<td class="tx-conf">' + (p.confidence != null ? p.confidence + '%' : '-') + '</td>' +
     '<td><span class="mode-chip">' + (MODE_NAMES[p.mode] || p.mode || '-') + '</span></td>' +
     '<td class="tx-action">' + (p.action || '-') + '</td>' +
+    '<td><span class="color-chip"><span class="dot" style="background:' + sDot + '"></span>' + sLabel + '</span></td>' +
     '<td><span class="status-badge ' + badge + '">' + (p.result || 'Pending') + '</span></td>'
   );
 }
@@ -211,7 +216,7 @@ function refreshLogTable() {
   if (!logBody) return;
   logBody.innerHTML = '';
   if (!transactions.length) {
-    logBody.innerHTML = '<tr><td colspan="7" class="empty-state"><span>Belum ada transaksi.<br>Data sortir akan tampil secara real-time di sini.</span></td></tr>';
+    logBody.innerHTML = '<tr><td colspan="8" class="empty-state"><span>Belum ada transaksi.<br>Data sortir akan tampil secara real-time di sini.</span></td></tr>';
     return;
   }
   transactions.slice(0, MAX_LOG_ROWS).forEach((p) => {
@@ -221,17 +226,24 @@ function refreshLogTable() {
   });
 }
 
-/* ---------- Statistik + KPI ---------- */
+/* ---------- Statistik + KPI ----------
+   Persen match/error dihitung dari transaksi yang SUDAH resolved
+   (Success + Miss-sort). Yang masih Pending tidak ikut — jadi persen
+   cuma berubah saat hasil keluar: naik kalau MATCH, turun kalau ERROR. */
+function resolvedList() {
+  return transactions.filter((t) => t.result === 'Success' || t.result === 'Miss-sort');
+}
 function recalcStats() {
   stats.total = transactions.length;
   stats.success = transactions.filter((t) => t.result === 'Success').length;
   stats.miss = transactions.filter((t) => t.result === 'Miss-sort').length;
+  const done = stats.success + stats.miss; // resolved saja
 
   ['servo', 'recovery'].forEach((m) => {
     const list = transactions.filter((t) => t.mode === m);
     stats[m].total = list.length;
     stats[m].success = list.filter((t) => t.result === 'Success').length;
-    stats[m].dist = { biru: 0, kuning: 0, silver: 0 };
+    stats[m].dist = { biru: 0, kuning: 0, merah: 0 };
     list.forEach((t) => { if (stats[m].dist[t.color] != null) stats[m].dist[t.color]++; });
   });
 
@@ -242,34 +254,82 @@ function recalcStats() {
   set('kpiTotal', stats.total);
   set('kpiBiru', cnt('biru'));
   set('kpiKuning', cnt('kuning'));
-  set('kpiSilver', cnt('silver'));
-  set('kpiSuccessRate', pct(stats.success, stats.total));
-  set('kpiErrorRate', pct(stats.miss, stats.total));
+  set('kpiMerah', cnt('merah'));
+  set('kpiSuccessRate', pct(stats.success, done));
+  set('kpiMatchRate', pct(stats.success, done));
+  set('kpiErrorRate', pct(stats.miss, done));
 
-  // Bar distribusi + success rate per warna (Ringkasan Kerja)
+  // Balok kembar Match + Error per warna (resolved saja, Pending tidak ikut)
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const perColor = {};
-  ['biru', 'kuning', 'silver'].forEach((c) => {
-    const list = transactions.filter((t) => t.color === c);
-    perColor[c] = { total: list.length, ok: list.filter((t) => t.result === 'Success').length };
+  ['biru', 'kuning', 'merah'].forEach((c) => {
+    const list = transactions.filter((t) => t.color === c && (t.result === 'Success' || t.result === 'Miss-sort'));
+    perColor[c] = {
+      total: list.length,
+      ok: list.filter((t) => t.result === 'Success').length,
+      err: list.filter((t) => t.result === 'Miss-sort').length
+    };
   });
-  const maxTotal = Math.max(1, perColor.biru.total, perColor.kuning.total, perColor.silver.total);
-  ['biru', 'kuning', 'silver'].forEach((c) => {
+  const maxTotal = Math.max(1, perColor.biru.total, perColor.kuning.total, perColor.merah.total);
+  ['biru', 'kuning', 'merah'].forEach((c) => {
     const v = perColor[c];
     set('rate' + cap(c), pct(v.ok, v.total));
     const bar = document.getElementById('bar' + cap(c));
-    if (bar) bar.style.height = Math.max(8, Math.round((v.total / maxTotal) * 100)) + '%';
+    if (bar) bar.style.height = Math.max(8, Math.round((v.ok / maxTotal) * 100)) + '%';
+    const eb = document.getElementById('err' + cap(c));
+    if (eb) eb.style.height = v.err > 0 ? Math.max(10, Math.round((v.err / maxTotal) * 100)) + '%' : '0';
   });
 
-  const cur = stats[currentMode] || stats.servo;
-  set('kpiModeRate', pct(cur.success, cur.total));
+  const doneMode = (m) => transactions.filter((t) => t.mode === m && (t.result === 'Success' || t.result === 'Miss-sort'));
+  const okMode = (m) => doneMode(m).filter((t) => t.result === 'Success').length;
+  const errMode = (m) => doneMode(m).filter((t) => t.result === 'Miss-sort').length;
+  set('kpiModeRate', pct(okMode(currentMode), doneMode(currentMode).length));
   set('kpiModeLabel', 'Mode: ' + (currentMode === 'recovery' ? 'Recovery' : 'Servo'));
   set('statServoTotal', stats.servo.total);
-  set('statServoRate', pct(stats.servo.success, stats.servo.total));
+  set('statServoMatch', pct(okMode('servo'), doneMode('servo').length));
+  set('statServoError', errMode('servo'));
   set('statRecoveryTotal', stats.recovery.total);
-  set('statRecoveryRate', pct(stats.recovery.success, stats.recovery.total));
+  set('statRecoveryMatch', pct(okMode('recovery'), doneMode('recovery').length));
+  set('statRecoveryError', errMode('recovery'));
 
+  updateQcMatch();
   drawCharts();
+}
+
+/* ---------- Panel QC Match: Kamera vs micro:bit ---------- */
+function updateQcMatch() {
+  const camEl = document.getElementById('qcCam');
+  const binEl = document.getElementById('qcBin');
+  const badgeEl = document.getElementById('qcBadge');
+  const rateEl = document.getElementById('qcMatchRate');
+  const matchEl = document.getElementById('qcMatchCount');
+  const errEl = document.getElementById('qcErrorCount');
+  if (!camEl && !badgeEl) return;
+
+  const last = transactions[0] || null; // transaksi terbaru
+  const camTxt = last ? (last.colorLabel || last.color || '—') : '—';
+  const binTxt = last
+    ? (last.result === 'Pending' ? 'Menunggu…' : (last.sensorLabel || last.sensorBin || '—'))
+    : '—';
+  if (camEl) camEl.textContent = camTxt;
+  if (binEl) binEl.textContent = binTxt;
+
+  if (badgeEl) {
+    let cls = 'qc-badge idle';
+    let txt = 'STANDBY';
+    if (last && last.result === 'Success') { cls = 'qc-badge ok'; txt = 'MATCH'; }
+    else if (last && last.result === 'Miss-sort') { cls = 'qc-badge err'; txt = 'ERROR'; }
+    else if (last && last.result === 'Pending') { cls = 'qc-badge wait'; txt = 'CEK…'; }
+    badgeEl.className = cls;
+    badgeEl.textContent = txt;
+  }
+
+  const ok = stats.success || 0;
+  const miss = stats.miss || 0;
+  const done = ok + miss; // resolved saja → persen stabil, naik hanya saat MATCH
+  if (rateEl) rateEl.textContent = done > 0 ? Math.round((ok / done) * 100) + '%' : '0%';
+  if (matchEl) matchEl.textContent = ok + ' match';
+  if (errEl) errEl.textContent = miss + ' error';
 }
 
 function recordTransaction(p) {
@@ -294,6 +354,7 @@ try {
 
 /* ---------- Event dari ai-hardware.js ---------- */
 window.addEventListener('sfai:item-detected', (e) => recordTransaction(e.detail));
+window.addEventListener('sfai:item-pending', (e) => recordTransaction(e.detail));
 
 window.addEventListener('sfai:command-sent', (e) => {
   setLed('led-bt', 'on'); // simulasi hardware terkirim
@@ -403,19 +464,28 @@ window.addEventListener('storage', (e) => {
 let chartServo = null;
 let chartRecovery = null;
 
-function makeChart(id, data, colors) {
+function makeChart(id, matchData, errData, colors) {
   const el = document.getElementById(id);
   if (!el || typeof Chart === 'undefined') return null;
   return new Chart(el.getContext('2d'), {
     type: 'bar',
     data: {
-      labels: ['Merah', 'Kuning', 'Hitam', 'Biru'],
-      datasets: [{ data, backgroundColor: colors, borderRadius: 6, borderSkipped: false, barThickness: 22 }]
+      labels: ['Biru', 'Kuning', 'Merah'],
+      datasets: [
+        { label: 'Match', data: matchData, backgroundColor: colors, borderRadius: 6, borderSkipped: false, barThickness: 14 },
+        { label: 'Error', data: errData, backgroundColor: ['#6a040f', '#6a040f', '#6a040f'], borderRadius: 6, borderSkipped: false, barThickness: 14 }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: { boxWidth: 12, boxHeight: 12, font: { size: 10 }, color: '#cbd5e1', padding: 12 }
+        }
+      },
       scales: {
         y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(148,163,184,0.15)' } },
         x: { grid: { display: false }, ticks: { font: { size: 10 } } }
@@ -425,15 +495,27 @@ function makeChart(id, data, colors) {
   });
 }
 
+function modeColorSplit(m) {
+  const match = [0, 0, 0];
+  const err = [0, 0, 0];
+  const idx = { biru: 0, kuning: 1, merah: 2 };
+  transactions.forEach((t) => {
+    if (t.mode !== m || idx[t.color] == null) return;
+    if (t.result === 'Success') match[idx[t.color]]++;
+    else if (t.result === 'Miss-sort') err[idx[t.color]]++;
+  });
+  return { match, err };
+}
+
 function drawCharts() {
   if (typeof Chart === 'undefined') return;
   const colors = ['#0466c8', '#ffee32', '#e9ecef'];
-  const sData = [stats.servo.dist.biru, stats.servo.dist.kuning, stats.servo.dist.silver];
-  const rData = [stats.recovery.dist.biru, stats.recovery.dist.kuning, stats.recovery.dist.silver];
-  if (!chartServo) chartServo = makeChart('chartServo', sData, colors);
-  else { chartServo.data.datasets[0].data = sData; chartServo.update(); }
-  if (!chartRecovery) chartRecovery = makeChart('chartRecovery', rData, colors);
-  else { chartRecovery.data.datasets[0].data = rData; chartRecovery.update(); }
+  const s = modeColorSplit('servo');
+  const r = modeColorSplit('recovery');
+  if (!chartServo) chartServo = makeChart('chartServo', s.match, s.err, colors);
+  else { chartServo.data.datasets[0].data = s.match; chartServo.data.datasets[1].data = s.err; chartServo.update(); }
+  if (!chartRecovery) chartRecovery = makeChart('chartRecovery', r.match, r.err, colors);
+  else { chartRecovery.data.datasets[0].data = r.match; chartRecovery.data.datasets[1].data = r.err; chartRecovery.update(); }
 }
 drawCharts();
 
@@ -528,18 +610,21 @@ function downloadBlob(blob, filename) {
   }, 500);
 }
 
-const EXPORT_COLOR_BG = { biru: '#0466c8', kuning: '#ffee32', silver: '#e9ecef' };
+const EXPORT_COLOR_BG = { biru: '#0466c8', kuning: '#ffee32', merah: '#ff5f5f' };
 const EXPORT_STATUS_BG = { Success: '#38b000', 'Miss-sort': '#6a040f', Pending: '#f77f00' };
 
 function exportRows() {
   return transactions.map((t) => ({
     waktu: fmtTime(t.timestamp),
     id: t.id || '-',
+    kamera: t.colorLabel || (t.color ? t.color.charAt(0).toUpperCase() + t.color.slice(1) : '-'),
     kelas: t.colorLabel || (t.color ? t.color.charAt(0).toUpperCase() + t.color.slice(1) : '-'),
     color: t.color || '',
     conf: t.confidence != null ? t.confidence + '%' : '-',
     mode: t.modeName || MODE_NAMES[t.mode] || t.mode || '-',
-    aksi: t.action || t.destination || '-',
+    aksi: t.action || t.destination || t.expectedBin || '-',
+    sensor: t.sensorLabel || t.sensorBin || '-',
+    sensorBin: t.sensorBin || '',
     status: t.result || 'Pending'
   }));
 }
@@ -548,13 +633,14 @@ function exportSummary() {
   const total = stats.total || transactions.length;
   const success = stats.success || 0;
   const miss = stats.miss || 0;
-  const rate = (a, b) => (b > 0 ? Math.round((a / b) * 100) + '%' : '0%');
+  const done = success + miss; // resolved saja
+  const rate = (a) => (done > 0 ? Math.round((a / done) * 100) + '%' : '0%');
   const cnt = (c) => transactions.filter((t) => t.color === c).length;
   return {
     total, success, miss,
-    successRate: rate(success, total),
-    errorRate: rate(miss, total),
-    biru: cnt('biru'), kuning: cnt('kuning'), silver: cnt('silver'),
+    successRate: rate(success),
+    errorRate: rate(miss),
+    biru: cnt('biru'), kuning: cnt('kuning'), merah: cnt('merah'),
     servo: (stats.servo && stats.servo.total) || 0,
     recovery: (stats.recovery && stats.recovery.total) || 0
   };
@@ -577,7 +663,7 @@ async function exportSortingExcel() {
   const ARGB = {
     navy: 'FF0F172A', header: 'FF1E293B', white: 'FFFFFFFF', ink: 'FF0F172A',
     gray: 'FF64748B', zebra: 'FFF1F5F9', border: 'FFCBD5E1',
-    biru: 'FF0466C8', kuning: 'FFFFEE32', silver: 'FFE9ECEF',
+    biru: 'FF0466C8', kuning: 'FFFFEE32', merah: 'FFEF4444',
     success: 'FF38B000', miss: 'FF6A040F', pending: 'FFF77F00', dark: 'FF1E293B'
   };
   const thinBorder = {
@@ -597,11 +683,11 @@ async function exportSortingExcel() {
   });
   ws.columns = [
     { width: 14 }, { width: 17 }, { width: 13 }, { width: 10 },
-    { width: 28 }, { width: 36 }, { width: 14 }
+    { width: 28 }, { width: 30 }, { width: 20 }, { width: 14 }
   ];
 
   // Judul
-  ws.mergeCells('A1:G1');
+  ws.mergeCells('A1:H1');
   const title = ws.getCell('A1');
   title.value = 'SMART FACTORY AI — SORTING REPORT';
   title.font = { bold: true, size: 16, color: { argb: ARGB.white } };
@@ -610,7 +696,7 @@ async function exportSortingExcel() {
   ws.getRow(1).height = 30;
 
   // Subjudul
-  ws.mergeCells('A2:G2');
+  ws.mergeCells('A2:H2');
   const sub = ws.getCell('A2');
   sub.value = 'Closed-Loop QC  •  Diekspor: ' + dateStr;
   sub.font = { size: 10, color: { argb: ARGB.gray } };
@@ -618,9 +704,9 @@ async function exportSortingExcel() {
   ws.getRow(2).height = 18;
 
   // Ringkasan KPI
-  const kpiLabels = ['Total', 'Success', 'Error Rate', 'Biru', 'Kuning', 'Silver', 'Servo', 'Recovery'];
-  const kpiValues = [s.total, s.success + ' (' + s.successRate + ')', s.errorRate, s.biru, s.kuning, s.silver, s.servo, s.recovery];
-  const kpiFills = [ARGB.header, ARGB.success, ARGB.miss, ARGB.biru, ARGB.kuning, ARGB.silver, ARGB.header, ARGB.accent_purple || ARGB.header];
+  const kpiLabels = ['Total', 'Success', 'Error Rate', 'Biru', 'Kuning', 'Merah', 'Servo', 'Recovery'];
+  const kpiValues = [s.total, s.success + ' (' + s.successRate + ')', s.errorRate, s.biru, s.kuning, s.merah, s.servo, s.recovery];
+  const kpiFills = [ARGB.header, ARGB.success, ARGB.miss, ARGB.biru, ARGB.kuning, ARGB.merah, ARGB.header, ARGB.accent_purple || ARGB.header];
   const lr = ws.getRow(3);
   const vr = ws.getRow(4);
   kpiLabels.forEach((label, i) => {
@@ -643,7 +729,7 @@ async function exportSortingExcel() {
   ws.getRow(5).height = 6; // spacer
 
   // Header tabel
-  const headers = ['Waktu', 'ID Barang', 'Kelas AI', 'Conf.', 'Mode', 'Aksi Hardware', 'Status QC'];
+  const headers = ['Waktu', 'ID Barang', 'Kamera AI', 'Conf.', 'Mode', 'Aksi Hardware', 'Sensor Bin', 'Status QC'];
   const hr = ws.getRow(6);
   headers.forEach((h, i) => {
     const c = hr.getCell(i + 1);
@@ -656,25 +742,35 @@ async function exportSortingExcel() {
   hr.height = 22;
 
   // Baris data
-  const KELAS_ARGB = { biru: ARGB.biru, kuning: ARGB.kuning, silver: ARGB.silver };
+  const KELAS_ARGB = { biru: ARGB.biru, kuning: ARGB.kuning, merah: ARGB.merah };
+  const SENSOR_ARGB = { 'bin-biru': ARGB.biru, 'bin-kuning': ARGB.kuning, 'bin-merah': ARGB.merah };
+  const sensorKeyOf = (r) => (r.sensorBin || String(r.sensor || '').toLowerCase());
   rows.forEach((r, idx) => {
     const row = ws.getRow(7 + idx);
-    const vals = [r.waktu, r.id, r.kelas, r.conf, r.mode, r.aksi, r.status];
+    const vals = [r.waktu, r.id, r.kamera, r.conf, r.mode, r.aksi, r.sensor, r.status];
     vals.forEach((v, i) => {
       const c = row.getCell(i + 1);
       c.value = v;
-      c.font = { size: 10, color: { argb: ARGB.ink }, bold: (i === 2 || i === 6) };
+      c.font = { size: 10, color: { argb: ARGB.ink }, bold: (i === 2 || i === 7) };
       c.border = thinBorder;
-      c.alignment = { vertical: 'middle', wrapText: (i === 4 || i === 5), horizontal: ([0, 2, 3, 6].includes(i) ? 'center' : 'left') };
+      c.alignment = { vertical: 'middle', wrapText: (i === 4 || i === 5), horizontal: ([0, 2, 3, 6, 7].includes(i) ? 'center' : 'left') };
       if (idx % 2 === 1) c.fill = fillOf(ARGB.zebra);
     });
-    // Warna Kelas AI
+    // Warna Kamera AI
     const kc = row.getCell(3);
     kc.fill = fillOf(KELAS_ARGB[r.color] || ARGB.gray);
     kc.font = { bold: true, size: 10, color: { argb: (r.color === 'kuning' ? ARGB.dark : ARGB.white) } };
     kc.alignment = { horizontal: 'center', vertical: 'middle' };
+    // Warna Sensor Bin
+    const bc = row.getCell(7);
+    const sk = sensorKeyOf(r);
+    if (SENSOR_ARGB[sk]) {
+      bc.fill = fillOf(SENSOR_ARGB[sk]);
+      bc.font = { bold: true, size: 10, color: { argb: ((sk === 'bin-kuning' || sk === 'bin-merah') ? ARGB.dark : ARGB.white) } };
+      bc.alignment = { horizontal: 'center', vertical: 'middle' };
+    }
     // Warna Status QC
-    const sc = row.getCell(7);
+    const sc = row.getCell(8);
     if (r.status === 'Success') {
       sc.fill = fillOf(ARGB.success);
       sc.font = { bold: true, size: 10, color: { argb: ARGB.white } };
@@ -689,7 +785,7 @@ async function exportSortingExcel() {
     row.height = 20;
   });
 
-  ws.autoFilter = { from: 'A6', to: 'G6' };
+  ws.autoFilter = { from: 'A6', to: 'H6' };
 
   const buf = await wb.xlsx.writeBuffer();
   downloadBlob(
@@ -700,20 +796,31 @@ async function exportSortingExcel() {
 
 /* ----- Fallback Excel (.xls HTML rapi, kolom fix) ----- */
 function fallbackExcelHtml(s, rows, dateStr, fileDate) {
+  const sensorBgOf = (r) => {
+    const k = String(r.sensorBin || r.sensor || '').toLowerCase();
+    if (k.includes('kuning')) return ['#ffee32', '#1e293b'];
+    if (k.includes('merah')) return ['#ff5f5f', '#ffffff'];
+    return [null, null];
+  };
   const trs = rows.map((r, i) => {
     const bg = EXPORT_COLOR_BG[r.color] || '#64748b';
-    const fg = r.color === 'kuning' || r.color === 'silver' ? '#1e293b' : '#ffffff';
+    const fg = r.color === 'kuning' ? '#1e293b' : '#ffffff';
     const sbg = EXPORT_STATUS_BG[r.status] || '#f77f00';
     const sfg = r.status === 'Pending' ? '#1e293b' : '#ffffff';
+    const [bbg, bfg] = sensorBgOf(r);
     const zebra = i % 2 ? 'background:#f1f5f9;' : 'background:#ffffff;';
     const cell = 'border:1px solid #cbd5e1;padding:5px;font-size:10pt;vertical-align:middle;';
+    const binCell = bbg
+      ? '<td width="110" style="background:' + bbg + ';color:' + bfg + ';font-weight:bold;text-align:center;' + cell + '">' + escHtml(r.sensor) + '</td>'
+      : '<td width="110" style="' + zebra + cell + '">' + escHtml(r.sensor) + '</td>';
     return '<tr>' +
       '<td width="90" style="' + zebra + cell + 'text-align:center;white-space:nowrap;">' + escHtml(r.waktu) + '</td>' +
       '<td width="110" style="' + zebra + cell + 'white-space:nowrap;">' + escHtml(r.id) + '</td>' +
-      '<td width="80" style="background:' + bg + ';color:' + fg + ';font-weight:bold;text-align:center;' + cell + '">' + escHtml(r.kelas) + '</td>' +
+      '<td width="80" style="background:' + bg + ';color:' + fg + ';font-weight:bold;text-align:center;' + cell + '">' + escHtml(r.kamera) + '</td>' +
       '<td width="60" style="' + zebra + cell + 'text-align:center;white-space:nowrap;">' + escHtml(r.conf) + '</td>' +
       '<td width="180" style="' + zebra + cell + 'word-wrap:break-word;">' + escHtml(r.mode) + '</td>' +
-      '<td width="230" style="' + zebra + cell + 'word-wrap:break-word;">' + escHtml(r.aksi) + '</td>' +
+      '<td width="200" style="' + zebra + cell + 'word-wrap:break-word;">' + escHtml(r.aksi) + '</td>' +
+      binCell +
       '<td width="90" style="background:' + sbg + ';color:' + sfg + ';font-weight:bold;text-align:center;' + cell + 'white-space:nowrap;">' + escHtml(r.status) + '</td>' +
       '</tr>';
   }).join('');
@@ -728,17 +835,18 @@ function fallbackExcelHtml(s, rows, dateStr, fileDate) {
     '<x:Name>Sorting Report</x:Name><x:WorksheetOptions><x:FitToPage/><x:PrintTitles>' +
     '<x:Titles>$6:$6</x:Titles></x:PrintTitles></x:WorksheetOptions>' +
     '</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>' +
-    '<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;table-layout:fixed;width:840px;">' +
-    '<tr><td colspan="7" style="background:#0f172a;color:#ffffff;font-weight:bold;font-size:14pt;padding:10px;">SMART FACTORY AI — SORTING REPORT</td></tr>' +
-    '<tr><td colspan="7" style="color:#64748b;font-size:9pt;padding:4px 10px;">Closed-Loop QC • Diekspor: ' + escHtml(dateStr) + '</td></tr>' +
+    '<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;table-layout:fixed;width:950px;">' +
+    '<tr><td colspan="8" style="background:#0f172a;color:#ffffff;font-weight:bold;font-size:14pt;padding:10px;">SMART FACTORY AI — SORTING REPORT</td></tr>' +
+    '<tr><td colspan="8" style="color:#64748b;font-size:9pt;padding:4px 10px;">Closed-Loop QC • Diekspor: ' + escHtml(dateStr) + '</td></tr>' +
     '<tr>' + kpi('Total', s.total, '#1e293b') + kpi('Success', s.success + ' (' + s.successRate + ')', '#059669') +
     kpi('Error', s.errorRate, '#dc2626') + kpi('Biru', s.biru, '#0466c8') + kpi('Kuning', s.kuning, '#e6d400') +
-    kpi('Silver', s.silver, '#ced4da') + kpi('Servo', s.servo, '#2563eb') + kpi('Recovery', s.recovery, '#5a189a') + '</tr>' +
-    '<tr><td colspan="7" style="height:8px;"></td></tr>' +
+    kpi('Merah', s.merah, '#dc2626') + kpi('Servo', s.servo, '#2563eb') + kpi('Recovery', s.recovery, '#5a189a') + '</tr>' +
+    '<tr><td colspan="8" style="height:8px;"></td></tr>' +
     '<tr style="background:#1e293b;color:#ffffff;font-weight:bold;font-size:10pt;text-align:center;">' +
     '<th style="border:1px solid #1e293b;padding:6px;">Waktu</th><th style="border:1px solid #1e293b;padding:6px;">ID Barang</th>' +
-    '<th style="border:1px solid #1e293b;padding:6px;">Kelas AI</th><th style="border:1px solid #1e293b;padding:6px;">Conf.</th>' +
+    '<th style="border:1px solid #1e293b;padding:6px;">Kamera AI</th><th style="border:1px solid #1e293b;padding:6px;">Conf.</th>' +
     '<th style="border:1px solid #1e293b;padding:6px;">Mode</th><th style="border:1px solid #1e293b;padding:6px;">Aksi Hardware</th>' +
+    '<th style="border:1px solid #1e293b;padding:6px;">Sensor Bin</th>' +
     '<th style="border:1px solid #1e293b;padding:6px;">Status QC</th></tr>' + trs + '</table></body></html>';
 
   downloadBlob(new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' }), 'Sorting_Report_' + fileDate + '.xls');
@@ -757,17 +865,18 @@ function exportSortingDocs() {
   const cell = 'border:1px solid #cbd5e1;padding:5pt;font-size:9pt;vertical-align:top;';
   const trs = rows.map((r, i) => {
     const bg = EXPORT_COLOR_BG[r.color] || '#64748b';
-    const fg = r.color === 'kuning' || r.color === 'silver' ? '#1e293b' : '#ffffff';
+    const fg = r.color === 'kuning' ? '#1e293b' : '#ffffff';
     const sbg = EXPORT_STATUS_BG[r.status] || '#f77f00';
     const sfg = r.status === 'Pending' ? '#1e293b' : '#ffffff';
     const zebra = i % 2 ? 'background:#f1f5f9;' : 'background:#ffffff;';
     return '<tr>' +
-      '<td width="75" style="' + zebra + cell + 'text-align:center;white-space:nowrap;">' + escHtml(r.waktu) + '</td>' +
-      '<td width="80" style="' + zebra + cell + 'white-space:nowrap;">' + escHtml(r.id) + '</td>' +
-      '<td width="65" style="background:' + bg + ';color:' + fg + ';font-weight:bold;text-align:center;' + cell + '">' + escHtml(r.kelas) + '</td>' +
-      '<td width="50" style="' + zebra + cell + 'text-align:center;white-space:nowrap;">' + escHtml(r.conf) + '</td>' +
-      '<td width="140" style="' + zebra + cell + '">' + escHtml(r.mode) + '</td>' +
-      '<td width="175" style="' + zebra + cell + '">' + escHtml(r.aksi) + '</td>' +
+      '<td width="70" style="' + zebra + cell + 'text-align:center;white-space:nowrap;">' + escHtml(r.waktu) + '</td>' +
+      '<td width="70" style="' + zebra + cell + 'white-space:nowrap;">' + escHtml(r.id) + '</td>' +
+      '<td width="60" style="background:' + bg + ';color:' + fg + ';font-weight:bold;text-align:center;' + cell + '">' + escHtml(r.kamera) + '</td>' +
+      '<td width="45" style="' + zebra + cell + 'text-align:center;white-space:nowrap;">' + escHtml(r.conf) + '</td>' +
+      '<td width="110" style="' + zebra + cell + '">' + escHtml(r.mode) + '</td>' +
+      '<td width="140" style="' + zebra + cell + '">' + escHtml(r.aksi) + '</td>' +
+      '<td width="90" style="' + zebra + cell + '">' + escHtml(r.sensor) + '</td>' +
       '<td width="75" style="background:' + sbg + ';color:' + sfg + ';font-weight:bold;text-align:center;' + cell + 'white-space:nowrap;">' + escHtml(r.status) + '</td>' +
       '</tr>';
   }).join('');
@@ -807,18 +916,19 @@ function exportSortingDocs() {
     kpiCell('RECOVERY', s.recovery, '#5a189a') +
     kpiCell('BIRU', s.biru, '#0466c8') +
     kpiCell('KUNING', s.kuning, '#e6d400') +
-    kpiCell('SILVER', s.silver, '#ced4da') +
+    kpiCell('MERAH', s.merah, '#dc2626') +
     '</tr></table>' +
     '<p style="font-size:6pt;">&nbsp;</p>' +
     // Tabel data
     '<table width="660" cellspacing="0" cellpadding="0" style="width:660px;">' +
     '<tr style="background:#1e293b;color:#ffffff;font-size:9pt;font-weight:bold;text-align:center;">' +
-    '<th width="75" style="border:1px solid #1e293b;padding:5pt;">Waktu</th>' +
-    '<th width="80" style="border:1px solid #1e293b;padding:5pt;">ID Barang</th>' +
-    '<th width="65" style="border:1px solid #1e293b;padding:5pt;">Kelas AI</th>' +
-    '<th width="50" style="border:1px solid #1e293b;padding:5pt;">Conf.</th>' +
-    '<th width="140" style="border:1px solid #1e293b;padding:5pt;">Mode</th>' +
-    '<th width="175" style="border:1px solid #1e293b;padding:5pt;">Aksi Hardware</th>' +
+    '<th width="70" style="border:1px solid #1e293b;padding:5pt;">Waktu</th>' +
+    '<th width="70" style="border:1px solid #1e293b;padding:5pt;">ID Barang</th>' +
+    '<th width="60" style="border:1px solid #1e293b;padding:5pt;">Kamera AI</th>' +
+    '<th width="45" style="border:1px solid #1e293b;padding:5pt;">Conf.</th>' +
+    '<th width="110" style="border:1px solid #1e293b;padding:5pt;">Mode</th>' +
+    '<th width="140" style="border:1px solid #1e293b;padding:5pt;">Aksi Hardware</th>' +
+    '<th width="90" style="border:1px solid #1e293b;padding:5pt;">Sensor Bin</th>' +
     '<th width="75" style="border:1px solid #1e293b;padding:5pt;">Status QC</th>' +
     '</tr>' + trs + '</table>' +
     '<p style="color:#64748b;font-size:8pt;">Smart Factory AI © 2026 • ' + rows.length + ' transaksi • Diekspor ' + escHtml(dateStr) + '</p>' +
@@ -851,8 +961,9 @@ function exportSortingPdf() {
   const total = stats.total || transactions.length;
   const success = stats.success || 0;
   const miss = stats.miss || 0;
-  const successRate = total > 0 ? Math.round((success / total) * 100) : 0;
-  const errorRate = total > 0 ? Math.round((miss / total) * 100) : 0;
+  const done = success + miss; // resolved saja
+  const successRate = done > 0 ? Math.round((success / done) * 100) : 0;
+  const errorRate = done > 0 ? Math.round((miss / done) * 100) : 0;
 
   const countBy = (c) => transactions.filter((t) => t.color === c).length;
 
@@ -901,9 +1012,9 @@ function exportSortingPdf() {
 
   /* ----- Distribusi warna ----- */
   const dist = [
-    { label: 'Biru (Bin B)', count: countBy('biru'), bg: '#0466c8', fg: '#ffffff' },
-    { label: 'Kuning (Bin A)', count: countBy('kuning'), bg: '#ffee32', fg: '#1e293b' },
-    { label: 'Silver (Pass)', count: countBy('silver'), bg: '#e9ecef', fg: '#1e293b' }
+    { label: 'Kuning (bin-kuning)', count: countBy('kuning'), bg: '#ffee32', fg: '#1e293b' },
+    { label: 'Merah (bin-merah)', count: countBy('merah'), bg: '#ef4444', fg: '#ffffff' },
+    { label: 'Biru (pass)', count: countBy('biru'), bg: '#0466c8', fg: '#ffffff' }
   ];
   let dx = 14;
   const dw = (pageW - 28 - (dist.length - 1) * 4) / dist.length;
@@ -918,19 +1029,23 @@ function exportSortingPdf() {
   });
 
   /* ----- Tabel ----- */
-  const head = [['Waktu', 'ID Barang', 'Kelas AI', 'Conf.', 'Mode', 'Aksi Hardware', 'Status QC']];
+  const head = [['Waktu', 'ID Barang', 'Kamera AI', 'Conf.', 'Mode', 'Aksi Hardware', 'Sensor Bin', 'Status QC']];
   const body = transactions.slice(0, 500).map((t) => [
     fmtTime(t.timestamp),
     t.id || '-',
     t.colorLabel || (t.color ? t.color.charAt(0).toUpperCase() + t.color.slice(1) : '-'),
     (t.confidence != null ? t.confidence + '%' : '-'),
     t.modeName || MODE_NAMES[t.mode] || t.mode || '-',
-    t.action || t.destination || '-',
+    t.action || t.destination || t.expectedBin || '-',
+    t.sensorLabel || t.sensorBin || '-',
     t.result || 'Pending'
   ]);
 
   const COLOR_FILL = {
-    biru: '#0466c8', kuning: '#ffee32', silver: '#e9ecef'
+    biru: '#0466c8', kuning: '#ffee32', merah: '#ef4444'
+  };
+  const SENSOR_FILL = {
+    'bin-biru': '#0466c8', 'bin-kuning': '#ffee32', 'bin-merah': '#ff5f5f'
   };
 
   doc.autoTable({
@@ -938,30 +1053,40 @@ function exportSortingPdf() {
     body,
     startY: 73,
     theme: 'grid',
-    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 2.2, textColor: [15, 23, 42] },
-    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+    styles: { font: 'helvetica', fontSize: 8, cellPadding: 2, textColor: [15, 23, 42] },
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8.5 },
     alternateRowStyles: { fillColor: [241, 245, 249] },
     columnStyles: {
-      0: { cellWidth: 28 },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
-      3: { cellWidth: 18, halign: 'center' },
-      4: { cellWidth: 48 },
-      5: { cellWidth: 'auto' },
-      6: { cellWidth: 30, halign: 'center', fontStyle: 'bold' }
+      0: { cellWidth: 24 },
+      1: { cellWidth: 24 },
+      2: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
+      3: { cellWidth: 16, halign: 'center' },
+      4: { cellWidth: 38 },
+      5: { cellWidth: 48 },
+      6: { cellWidth: 40, halign: 'center', fontStyle: 'bold' },
+      7: { cellWidth: 26, halign: 'center', fontStyle: 'bold' }
     },
     didParseCell(data) {
       if (data.section !== 'body') return;
       const tx = transactions.slice(0, 500)[data.row.index];
       if (!tx) return;
-      // Kolom Kelas AI (index 2) — background sesuai warna barang
+      // Kolom Kamera AI (index 2) — background sesuai warna barang
       if (data.column.index === 2) {
         const fill = COLOR_FILL[tx.color] || '#64748b';
         data.cell.styles.fillColor = pdfColor(fill);
         data.cell.styles.textColor = tx.color === 'kuning' ? [30, 41, 59] : [255, 255, 255];
       }
-      // Kolom Status QC (index 6) — hijau/kuning/merah
+      // Kolom Sensor Bin (index 6)
       if (data.column.index === 6) {
+        const key = String(tx.sensorBin || '').toLowerCase();
+        const fill = SENSOR_FILL[key];
+        if (fill) {
+          data.cell.styles.fillColor = pdfColor(fill);
+          data.cell.styles.textColor = key === 'bin-kuning' ? [30, 41, 59] : [255, 255, 255];
+        }
+      }
+      // Kolom Status QC (index 7)
+      if (data.column.index === 7) {
         if (tx.result === 'Success') {
           data.cell.styles.fillColor = [16, 185, 129];
           data.cell.styles.textColor = [255, 255, 255];

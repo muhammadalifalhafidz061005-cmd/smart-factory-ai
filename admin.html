@@ -108,32 +108,78 @@
       </div>
 
       <div class="kpi-summary">
-        <p class="kpi-total-line">Total diproses: <strong id="kpiTotal">0</strong> barang</p>
-        <p class="kpi-error-line">Error Rate: <strong id="kpiErrorRate">0%</strong></p>
+        <p class="kpi-total-line">Total: <strong id="kpiTotal">0</strong></p>
+        <p class="kpi-match-line">Match: <strong id="kpiMatchRate">0%</strong></p>
+        <p class="kpi-error-line">Error: <strong id="kpiErrorRate">0%</strong></p>
       </div>
 
       <div class="dist-bars" id="distBars">
         <div class="dist-col">
-          <span class="dist-count" id="kpiBiru">0</span>
-          <div class="dist-track"><div class="dist-fill fill-biru" id="barBiru"></div></div>
-          <div class="dist-rate"><span>Biru (Bin B) · Success Rate</span><strong id="rateBiru">0%</strong></div>
-        </div>
-        <div class="dist-col">
           <span class="dist-count" id="kpiKuning">0</span>
-          <div class="dist-track"><div class="dist-fill fill-kuning" id="barKuning"></div></div>
-          <div class="dist-rate"><span>Kuning (Bin A) · Success Rate</span><strong id="rateKuning">0%</strong></div>
+          <div class="dist-track"><div class="dist-fill fill-kuning" id="barKuning"></div><div class="dist-err" id="errKuning"></div></div>
+          <div class="dist-rate"><span>Kuning · bin-kuning</span><strong id="rateKuning">0%</strong></div>
         </div>
         <div class="dist-col">
-          <span class="dist-count" id="kpiSilver">0</span>
-          <div class="dist-track"><div class="dist-fill fill-silver" id="barSilver"></div></div>
-          <div class="dist-rate"><span>Silver (Pass) · Success Rate</span><strong id="rateSilver">0%</strong></div>
+          <span class="dist-count" id="kpiMerah">0</span>
+          <div class="dist-track"><div class="dist-fill fill-merah" id="barMerah"></div><div class="dist-err" id="errMerah"></div></div>
+          <div class="dist-rate"><span>Merah · bin-merah</span><strong id="rateMerah">0%</strong></div>
         </div>
+        <div class="dist-col">
+          <span class="dist-count" id="kpiBiru">0</span>
+          <div class="dist-track"><div class="dist-fill fill-biru" id="barBiru"></div><div class="dist-err" id="errBiru"></div></div>
+          <div class="dist-rate"><span>Biru · pass</span><strong id="rateBiru">0%</strong></div>
+        </div>
+      </div>
+      <div class="dist-legend" aria-hidden="true">
+        <span class="lg"><i class="lg-box lg-ok"></i>Match</span>
+        <span class="lg"><i class="lg-box lg-bad"></i>Error</span>
+      </div>
+
+      <!-- QC Terakhir: Kamera vs micro:bit -->
+      <div class="qc-match" id="qcMatch" aria-live="polite">
+        <p class="qc-title">QC Terakhir <span>kamera vs micro:bit</span></p>
+        <div class="qc-grid">
+          <div class="qc-box">
+            <span class="qc-cap">Kamera</span>
+            <strong class="qc-val" id="qcCam">—</strong>
+          </div>
+          <div class="qc-mid">
+            <span class="qc-badge idle" id="qcBadge">STANDBY</span>
+          </div>
+          <div class="qc-box">
+            <span class="qc-cap">micro:bit</span>
+            <strong class="qc-val" id="qcBin">—</strong>
+          </div>
+        </div>
+        <p class="qc-sub"><strong id="qcMatchRate">0%</strong> match · <span id="qcMatchCount">0 match</span> · <span id="qcErrorCount">0 error</span></p>
       </div>
       <!-- ID lama dipertahankan untuk kompatibilitas JS -->
       <span class="hidden" id="kpiSuccessRate">0%</span>
       <span class="hidden" id="kpiRecovered">0</span>
       <span class="hidden" id="kpiModeRate">0%</span>
       <span class="hidden" id="kpiModeLabel">Mode: Servo</span>
+    </section>
+
+    <!-- ---------- Koneksi Bluetooth ---------- -->
+    <section class="panel bt-panel" id="sec-bluetooth" aria-labelledby="btTitle" style="margin-bottom:18px">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2 id="btTitle">Koneksi Bluetooth</h2>
+          <p class="panel-desc">Koneksi Micro:bit via Web Bluetooth (Nordic UART Service)</p>
+        </div>
+        <span class="panel-tag" id="btStatusTag"><span class="tag-pulse"></span>Belum Terhubung</span>
+      </div>
+
+      <div class="glass-card bt-card" style="text-align:center;padding:24px 22px">
+        <h3 style="justify-content:center"><span data-i18n="bt_title">Koneksi Bluetooth</span></h3>
+        <div class="bt-status" id="btStatus"><span class="s-dot" id="btDot"></span><span id="btText" data-i18n="bt_disconnected">Belum terhubung — tekan tombol di bawah</span></div>
+        <button class="nav-connect" id="connectBtn2" style="max-width:360px;margin:0 auto;display:block">Hubungkan Bluetooth</button>
+        <div class="conn-indicators" style="margin-top:16px">
+          <div class="indic" id="indicBt"><span class="s-dot" style="background:var(--red)"></span><strong>Bluetooth</strong><span id="indicBtText">Disconnected</span></div>
+          <div class="indic" id="indicCam"><span class="s-dot" style="background:var(--amber)"></span><strong>Kamera</strong><span id="indicCamText">Idle</span></div>
+        </div>
+        <p style="font-size:.68rem;color:var(--text-tertiary);margin-top:10px" data-i18n="bt_hint">Gunakan Chrome/Edge (HTTPS) • Filter: BBC micro:bit • TX:6e400003 / RX:6e400002</p>
+      </div>
     </section>
 
     <!-- ---------- Row: Kamera + Chart ---------- -->
@@ -210,7 +256,7 @@
         <div class="panel-head">
           <div class="panel-title">
             <h2 id="chartTitle">Distribusi Warna</h2>
-            <p class="panel-desc">Perbandingan jumlah per kelas (Servo vs Recovery)</p>
+            <p class="panel-desc">Match vs Error per warna (Servo vs Recovery)</p>
           </div>
         </div>
 
@@ -228,9 +274,13 @@
                 <span class="stat-value" id="statServoTotal">0</span>
                 <span class="stat-label">Total</span>
               </div>
-              <div class="stat-item">
-                <span class="stat-value" id="statServoRate">0%</span>
-                <span class="stat-label">Success</span>
+              <div class="stat-item stat-ok">
+                <span class="stat-value" id="statServoMatch">0%</span>
+                <span class="stat-label">Match</span>
+              </div>
+              <div class="stat-item stat-bad">
+                <span class="stat-value" id="statServoError">0</span>
+                <span class="stat-label">Error</span>
               </div>
             </div>
           </div>
@@ -248,9 +298,13 @@
                 <span class="stat-value" id="statRecoveryTotal">0</span>
                 <span class="stat-label">Total</span>
               </div>
-              <div class="stat-item">
-                <span class="stat-value" id="statRecoveryRate">0%</span>
-                <span class="stat-label">Success</span>
+              <div class="stat-item stat-ok">
+                <span class="stat-value" id="statRecoveryMatch">0%</span>
+                <span class="stat-label">Match</span>
+              </div>
+              <div class="stat-item stat-bad">
+                <span class="stat-value" id="statRecoveryError">0</span>
+                <span class="stat-label">Error</span>
               </div>
             </div>
           </div>
@@ -287,15 +341,15 @@
             <div class="flow-branch">
               <div class="branch">
                 <span class="branch-color kuning"></span>
-                <span>Kuning → SERVO → Bin A</span>
+                <span>Kuning → SERVO → bin-kuning</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color merah"></span>
+                <span>Merah → SERVO → bin-merah</span>
               </div>
               <div class="branch">
                 <span class="branch-color biru"></span>
-                <span>Biru → SERVO → Bin B</span>
-              </div>
-              <div class="branch">
-                <span class="branch-color silver"></span>
-                <span>Silver → PASS</span>
+                <span>Biru → SERVO → pass (bin-biru)</span>
               </div>
             </div>
           </div>
@@ -319,15 +373,15 @@
             <div class="flow-branch">
               <div class="branch">
                 <span class="branch-color kuning"></span>
-                <span>Kuning → IR → STOP → ARM → Bin A</span>
+                <span>Kuning → IR → STOP → ARM → bin-kuning</span>
+              </div>
+              <div class="branch">
+                <span class="branch-color merah"></span>
+                <span>Merah → IR → STOP → ARM → bin-merah</span>
               </div>
               <div class="branch">
                 <span class="branch-color biru"></span>
-                <span>Biru → IR → STOP → ARM → Bin B</span>
-              </div>
-              <div class="branch">
-                <span class="branch-color silver"></span>
-                <span>Silver → PASS</span>
+                <span>Biru → IR → STOP → ARM → pass (bin-biru)</span>
               </div>
             </div>
           </div>
@@ -380,16 +434,17 @@
             <tr>
               <th scope="col">Waktu</th>
               <th scope="col">ID Barang</th>
-              <th scope="col">Kelas AI</th>
+              <th scope="col">Kamera AI</th>
               <th scope="col">Conf.</th>
               <th scope="col">Mode</th>
               <th scope="col">Aksi Hardware</th>
+              <th scope="col">Sensor Bin</th>
               <th scope="col">Status QC</th>
             </tr>
           </thead>
           <tbody id="logBody">
             <tr>
-              <td colspan="7" class="empty-state">
+              <td colspan="8" class="empty-state">
                 <span class="empty-ico" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
                 </span>
