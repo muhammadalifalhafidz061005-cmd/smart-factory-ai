@@ -1,114 +1,2278 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Smart Factory AI — Pilih mode masuk: Tamu atau Admin">
-  <meta name="theme-color" content="#0f172a">
-  <title>Smart Factory AI — Masuk</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="description" content="VERNOVA — Smart Sorting Factory Dashboard. Real-time object sorting analytics, mobile drawer menu, desktop sidebar navigation.">
+<title>VERNOVA · Smart Sorting Dashboard</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- ================= DEPENDENCIES ================= -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { darkMode: 'class' };</script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="index.css">
+<!-- TensorFlow.js + Teachable Machine -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+<!-- Rich Export Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+
+<style>
+/* ================= THEME TOKENS — simple modern, human-made ================= */
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --surface-solid:#ffffff;
+  --surface-soft:#eef2f7;
+  --border:#e2e8f0; --text:#0f172a; --muted:#64748b;
+  --brand:#1d4ed8; --brand2:#1d4ed8; --shadow:0 1px 2px rgba(15,23,42,.06),0 10px 28px -18px rgba(15,23,42,.22);
+}
+html.dark{
+  --bg:#0b1220; --surface:#121d33; --surface-solid:#16233f;
+  --surface-soft:rgba(148,163,184,.12);
+  --border:rgba(148,163,184,.18); --text:#e8eef7; --muted:#94a3b8;
+  --brand:#3b82f6; --brand2:#3b82f6; --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 30px -18px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  overflow:hidden; -webkit-font-smoothing:antialiased;
+  transition:background .25s ease,color .25s ease;
+}
+.t-main{color:var(--text);} .t-muted{color:var(--muted);}
+.font-display{font-family:'Inter',system-ui,sans-serif;letter-spacing:-.02em;}
+
+/* Latar dibuat polos agar terlihat rapi seperti buatan manusia */
+.orbs{display:none!important;}
+
+/* ================= SHELL ================= */
+#app-shell{
+  position:relative;z-index:1;display:flex;
+  height:100vh;height:100dvh;width:100%;
+  transition:padding .3s ease;
+  background:var(--bg);
+}
+#app-shell.pos-left  {flex-direction:row;}
+#app-shell.pos-right {flex-direction:row-reverse;}
+#app-shell.pos-top{flex-direction:column;}
+
+.glass{
+  background:var(--surface);
+  border:1px solid var(--border);
+}
+
+/* ================= SIDEBAR (vertical) — kiri / kanan ================= */
+#sidebar{
+  width:264px;flex:0 0 264px;display:none;flex-direction:column;gap:1rem;
+  padding:1.25rem;height:100%;overflow-y:auto;
+  border-right:1px solid var(--border);
+  background:var(--surface);
+  transition:border-color .25s ease,background .25s ease;
+}
+/* Kanan: pindahkan border ke sisi kiri */
+#app-shell.pos-right #sidebar{
+  border-right:none;
+  border-left:1px solid var(--border);
+}
+/* Atas: sidebar disembunyikan total, pakai bar atas */
+#app-shell.pos-top #sidebar{display:none!important;}
+
+/* Hanya tampilkan sidebar di desktop (posisi kiri/kanan) */
+@media(min-width:1024px){
+  #app-shell:not(.pos-top) #sidebar{display:flex;}
+}
+
+/* ================= TOP BAR NAV — DESKTOP ONLY (mode Atas) ================= */
+#bottombar{
+  display:none;align-items:center;gap:.5rem;
+  padding:.55rem 1rem;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+  flex:0 0 auto;z-index:30;
+  transition:border-color .25s ease,background .25s ease;
+}
+/* Mobile default: 4 tab sejajar */
+.bottom-tabs{
+  display:flex;flex:1;align-items:center;justify-content:space-around;gap:.25rem;
+}
+/* Bagian brand & spacer hanya tampil di mode Bottom (desktop) */
+.bottom-brand{display:none;align-items:center;gap:.7rem;flex:0 0 auto;}
+.bottom-brand .brand-logo{
+  width:34px;height:34px;border-radius:.7rem;display:flex;align-items:center;justify-content:center;
+  background:var(--brand);color:#fff;font-size:.85rem;
+}
+.bottom-brand .brand-text{display:flex;flex-direction:column;line-height:1.05;}
+.bottom-brand .brand-name{
+  font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:.85rem;
+  letter-spacing:.06em;color:var(--text);
+}
+.bottom-brand .brand-sub{
+  font-size:.55rem;font-weight:800;color:var(--muted);
+  letter-spacing:.1em;text-transform:uppercase;
+}
+.bottom-spacer{display:none;align-items:center;gap:.45rem;justify-content:flex-end;flex:0 0 auto;min-width:120px;}
+
+/* Desktop only: bar atas tampil HANYA saat mode Atas aktif.
+   Mobile (<1024px): selalu disembunyikan — HP pakai drawer menu. */
+@media(min-width:1024px){
+  #app-shell:not(.pos-top) #bottombar{display:none!important;}
+
+  #app-shell.pos-top #bottombar{
+    display:flex;
+    order:-1;
+    justify-content:space-between;
+    gap:1.5rem;
+    padding:.6rem 1.5rem;
+    border-top:none;
+    border-bottom:1px solid var(--border);
+  }
+  #app-shell.pos-top #bottombar .bottom-brand{display:flex;}
+  #app-shell.pos-top #bottombar .bottom-tabs{flex:0 1 auto;gap:.4rem;}
+  #app-shell.pos-top #bottombar .bottom-spacer{display:flex;}
+  #app-shell.pos-top #bottombar .tab-btn{
+    flex:0 0 auto;flex-direction:row;gap:.55rem;
+    font-size:.8rem;padding:.6rem 1rem;
+  }
+}
+
+/* ============ MOBILE DRAWER MENU (HP <1024px) ============ */
+#btn-menu{display:inline-flex;}
+@media(min-width:1024px){#btn-menu{display:none!important;}}
+#drawer-backdrop{
+  position:fixed;inset:0;z-index:140;display:block;
+  background:rgba(2,6,23,.55);backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity .35s ease;
+}
+#drawer-backdrop.show{opacity:1;pointer-events:auto;}
+#mobile-drawer{
+  position:fixed;top:0;left:0;bottom:0;z-index:150;
+  width:min(320px,86vw);display:flex;flex-direction:column;gap:1rem;
+  padding:1.1rem 1.1rem calc(1.1rem + env(safe-area-inset-bottom,0px));
+  padding-top:calc(1.1rem + env(safe-area-inset-top,0px));
+  background:var(--surface-solid);border-right:1px solid var(--border);
+  box-shadow:30px 0 60px -30px rgba(2,6,23,.55);
+  transform:translateX(-106%);transition:transform .48s cubic-bezier(.2,.9,.25,1.02);
+  overflow-y:auto;overscroll-behavior:contain;will-change:transform;
+}
+#mobile-drawer.open{transform:translateX(0);}
+@media(min-width:1024px){#mobile-drawer,#drawer-backdrop{display:none!important;}}
+.mnav-btn{
+  display:flex;align-items:center;gap:.8rem;width:100%;
+  padding:.85rem .95rem;border-radius:1rem;font-size:.85rem;font-weight:800;
+  color:var(--muted);background:transparent;border:1px solid transparent;
+  cursor:pointer;transition:.22s;text-align:left;min-height:48px;
+}
+.mnav-btn i{width:1.25rem;text-align:center;font-size:1rem;}
+.mnav-btn:active{transform:scale(.98);}
+.mnav-btn.active{
+  color:var(--brand);border-color:transparent;
+  background:#e8effe;
+}
+html.dark .mnav-btn.active{background:rgba(59,130,246,.15);}
+
+/* ============ TOPBAR RESPONSIVE ============ */
+.status-group{
+  display:flex;align-items:center;gap:.4rem;flex:1 1 auto;min-width:0;
+  overflow-x:auto;scrollbar-width:none;padding-block:.1rem;
+}
+.status-group::-webkit-scrollbar{display:none;}
+.topbar-actions{display:flex;align-items:center;gap:.45rem;margin-left:auto;flex:0 0 auto;}
+@media(max-width:1023.98px){
+  .topbar{gap:.55rem;padding:.6rem .7rem;padding-top:calc(.6rem + env(safe-area-inset-top,0px));}
+  .topbar .pill{font-size:.55rem;padding:.28rem .55rem;}
+  #btn-conn-bt{padding:.6rem .8rem;font-size:.65rem;min-height:40px;}
+  .icon-btn{width:40px;height:40px;border-radius:.85rem;}
+}
+/* Desktop topbar lebih lega */
+@media(min-width:1024px){
+  .topbar{padding:.7rem 1.4rem;gap:.75rem;}
+  .status-group{flex:0 1 auto;}
+}
+
+/* ============ CONTENT CONTAINER (Laptop rapi, HP penuh) ============ */
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:1rem;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;}
+@media(min-width:768px){.scroll-area{padding:1.5rem;}}
+@media(min-width:1280px){.scroll-area{padding:2rem;}}
+.page{max-width:1220px;margin-inline:auto;width:100%;}
+.scroll-area:has(#page-team.active) #page-team{max-width:1080px;}
+
+/* Sentuhan premium: kartu lebih konsisten di semua ukuran */
+@media(max-width:640px){
+  .card{border-radius:1.1rem;}
+  .metric-value{font-size:1.45rem;}
+  .metric-icon{width:34px;height:34px;font-size:.85rem;margin-bottom:.5rem;}
+  .btn-primary,.btn-warn,.btn-ghost{min-height:44px;}
+  .seg button{min-height:42px;font-size:.68rem;}
+  .export-tile{padding:.95rem .5rem;}
+  .team-card{padding:1.5rem 1rem 1.25rem;}
+  h1{line-height:1.2;overflow-wrap:anywhere;}
+  .webcam-wrap{min-height:210px;}
+}
+/* Laptop: grid lebih seimbang */
+@media(min-width:1024px){
+  .card{border-radius:1.35rem;}
+  .webcam-wrap{min-height:230px;}
+}
+
+/* ============ MODAL: bottom-sheet di HP, dialog di desktop ============ */
+@media(max-width:640px){
+  .modal{align-items:flex-end;padding:0;}
+  .modal-panel{
+    max-width:100%;width:100%;max-height:92dvh;
+    border-radius:1.4rem 1.4rem 0 0;padding:1.25rem 1.1rem calc(1.25rem + env(safe-area-inset-bottom,0px));
+    border-bottom:none;
+  }
+  .modal-panel::before{
+    content:'';display:block;width:44px;height:5px;border-radius:999px;
+    background:rgba(148,163,184,.45);margin:0 auto .9rem;
+  }
+}
+
+/* Fokus aksesibel + kurangi motion bila diminta */
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}
+}
+
+/* ================= MAIN AREA ================= */
+.main-area{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;}
+.topbar{
+  display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;
+  padding:.6rem .85rem;border-bottom:1px solid var(--border);
+  background:var(--surface);
+  flex:0 0 auto;z-index:20;
+  transition:border-color .25s ease,background .25s ease;
+}
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:1rem;scroll-behavior:smooth;}
+@media(min-width:768px){.scroll-area{padding:1.5rem;}}
+@media(min-width:1280px){.scroll-area{padding:2rem;}}
+
+/* ================= PAGES ================= */
+.page{display:none;}
+.page.active{display:block;animation:pageIn .3s ease-out both;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes sideInLeft{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+@keyframes sideInRight{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+@keyframes barDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+@keyframes mainShift{from{opacity:.5;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes drawerItem{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@keyframes logIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes metricPop{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* stagger halus — kesan rapi buatan manusia */
+.page.active .card{animation:cardIn .32s ease-out both;}
+.page.active .card:nth-child(2){animation-delay:.04s;}
+.page.active .card:nth-child(3){animation-delay:.08s;}
+.page.active .card:nth-child(4){animation-delay:.12s;}
+.page.active .card:nth-child(5){animation-delay:.16s;}
+.page.active .team-card:nth-child(1){animation:cardIn .32s .02s both;}
+.page.active .team-card:nth-child(2){animation:cardIn .32s .07s both;}
+.page.active .team-card:nth-child(3){animation:cardIn .32s .12s both;}
+/* transisi pindah posisi bar: kiri / kanan / atas */
+#app-shell.is-switching .main-area{animation:mainShift .3s ease-out both;}
+@media(min-width:1024px){
+  #app-shell.pos-left.is-switching #sidebar{animation:sideInLeft .3s ease-out both;}
+  #app-shell.pos-right.is-switching #sidebar{animation:sideInRight .3s ease-out both;}
+  #app-shell.pos-top.is-switching #bottombar{animation:barDown .3s ease-out both;}
+}
+/* drawer item stagger halus */
+#mobile-drawer.open .mnav-btn{animation:drawerItem .28s ease-out both;}
+#mobile-drawer.open nav .mnav-btn:nth-child(2){animation-delay:.04s;}
+#mobile-drawer.open nav .mnav-btn:nth-child(3){animation-delay:.08s;}
+/* nav aktif simple */
+.sidebar-btn,.mnav-btn,.tab-btn{position:relative;}
+.sidebar-btn::after,.mnav-btn::after{
+  content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:999px;
+  background:var(--brand);
+  transform:scaleY(0);transform-origin:top;transition:transform .22s ease;
+}
+.sidebar-btn.active::after,.mnav-btn.active::after{transform:scaleY(1);}
+.tab-btn.active{background:#e8effe;color:var(--brand);}
+html.dark .tab-btn.active{background:rgba(59,130,246,.16);}
+/* tombol ditekan halus, tanpa kilau AI */
+.btn-primary:active,.btn-warn:active,.btn-ghost:active,.icon-btn:active{transform:scale(.97);}
+.metric-value.pop{animation:metricPop .3s ease-out;}
+.log-item{animation:logIn .28s ease-out;}
+.modal.open .modal-panel{animation:modalIn .3s ease-out both;}
+#toast.show .toast-inner{animation:toastIn .28s ease-out;}
+
+/* ================= CARDS — solid, simple ================= */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);border-radius:1rem;
+  box-shadow:var(--shadow);
+  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+}
+.card-hover:hover{transform:translateY(-2px);border-color:#c7d7f8;box-shadow:0 1px 2px rgba(15,23,42,.07),0 14px 30px -18px rgba(29,78,216,.35);}
+.card-title{font-weight:800;font-size:.82rem;display:flex;align-items:center;gap:.5rem;}
+.card-title i{color:var(--brand);}
+
+/* ================= BUTTONS — solid simple ================= */
+.btn-primary{
+  background:var(--brand);color:#fff;font-weight:700;
+  border-radius:.75rem;border:none;cursor:pointer;
+  box-shadow:0 1px 2px rgba(15,23,42,.2);
+  transition:background .2s ease,transform .15s ease;
+}
+.btn-primary:hover{background:#1e40af;transform:translateY(-1px);}
+html.dark .btn-primary:hover{background:#2563eb;}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;}
+.btn-warn{background:#d97706;color:#fff;font-weight:700;border-radius:.75rem;border:none;cursor:pointer;transition:background .2s ease,transform .15s ease;}
+.btn-warn:hover{background:#b45309;transform:translateY(-1px);}
+.btn-warn.is-resume{background:#16a34a;}
+.btn-ghost{
+  background:var(--surface-soft);color:var(--muted);border:1px solid var(--border);
+  border-radius:.75rem;font-weight:600;cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease;
+}
+.btn-ghost:hover{color:var(--brand);border-color:#bfdbfe;background:#eff6ff;}
+html.dark .btn-ghost:hover{background:rgba(59,130,246,.12);}
+.icon-btn{
+  width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:.7rem;background:var(--surface);border:1px solid var(--border);
+  color:var(--muted);cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease;flex:0 0 auto;
+}
+.icon-btn:hover{color:var(--brand);border-color:#bfdbfe;background:#eff6ff;}
+html.dark .icon-btn:hover{background:rgba(59,130,246,.12);}
+.icon-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.icon-btn.danger:hover{color:#dc2626;border-color:#fecaca;background:#fef2f2;}
+
+/* ================= SIDEBAR NAV — simple ================= */
+.sidebar-btn{
+  display:flex;align-items:center;gap:.75rem;width:100%;padding:.7rem .85rem;
+  border-radius:.75rem;color:var(--muted);font-weight:600;font-size:.83rem;
+  background:transparent;border:1px solid transparent;cursor:pointer;
+  transition:background .2s ease,color .2s ease; text-align:left;
+}
+.sidebar-btn i{width:1.1rem;text-align:center;font-size:.95rem;}
+.sidebar-btn:hover{background:var(--surface-soft);color:var(--text);}
+.sidebar-btn.active{
+  background:#e8effe;
+  color:var(--brand);border-color:transparent;
+}
+html.dark .sidebar-btn.active{background:rgba(59,130,246,.15);}
+html.dark .sidebar-btn:hover{background:rgba(148,163,184,.12);color:var(--text);}
+
+/* ================= TOP TABS ================= */
+.tab-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:.18rem;
+  padding:.5rem .25rem;border-radius:.7rem;color:var(--muted);
+  font-size:.68rem;font-weight:700;background:transparent;border:none;
+  cursor:pointer;transition:background .2s ease,color .2s ease;white-space:nowrap;
+}
+.tab-btn i{font-size:1rem;}
+.tab-btn:hover:not(.active){color:var(--text);background:var(--surface-soft);}
+
+/* ================= PILLS ================= */
+.pill{
+  font-size:.58rem;font-weight:800;letter-spacing:.05em;padding:.3rem .6rem;
+  border-radius:999px;background:var(--surface-soft);color:var(--muted);
+  border:1px solid var(--border);white-space:nowrap;transition:.3s;
+}
+.pill.on{background:rgba(34,197,94,.16);color:#16a34a;border-color:rgba(34,197,94,.38);}
+.pill.blue{background:rgba(59,130,246,.16);color:#2563eb;border-color:rgba(59,130,246,.38);}
+.pill.warn{background:rgba(234,179,8,.18);color:#ca8a04;border-color:rgba(234,179,8,.42);}
+html.dark .pill.on{color:#4ade80;} html.dark .pill.blue{color:#60a5fa;} html.dark .pill.warn{color:#facc15;}
+
+/* ================= METRICS ================= */
+.metric-value{font-size:clamp(1.5rem,4vw,2rem);font-weight:900;line-height:1.05;letter-spacing:-.03em;}
+.metric-label{font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);}
+.metric-icon{
+  width:38px;height:38px;border-radius:.85rem;display:flex;align-items:center;justify-content:center;
+  font-size:.95rem;margin-bottom:.65rem;
+}
+
+/* ================= INPUTS ================= */
+.inp{
+  width:100%;padding:.6rem .8rem;border-radius:.8rem;border:1px solid var(--border);
+  background:var(--surface-soft);color:var(--text);font-size:.76rem;font-weight:600;
+  outline:none;transition:.25s;
+}
+.inp::placeholder{color:var(--muted);font-weight:500;}
+.inp:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(59,130,246,.18);}
+select.inp{cursor:pointer;}
+
+/* ================= WEBCAM ================= */
+.webcam-wrap{
+  position:relative;width:100%;border-radius:.9rem;overflow:hidden;
+  background:var(--surface-soft);
+  border:1px solid var(--border);min-height:190px;
+  display:flex;align-items:center;justify-content:center;
+}
+.webcam-wrap canvas{width:100%!important;height:auto!important;display:block;}
+#pause-overlay{
+  position:absolute;inset:0;background:rgba(2,6,23,.72);backdrop-filter:blur(4px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;
+  opacity:0;pointer-events:none;transition:opacity .35s;z-index:5;
+}
+#pause-overlay.show{opacity:1;pointer-events:auto;}
+
+/* ================= LOG ================= */
+.log-item{
+  display:flex;align-items:center;gap:.7rem;padding:.6rem .7rem;border-radius:.8rem;
+  background:var(--surface);border:1px solid var(--border);
+}
+.log-ico{width:30px;height:30px;border-radius:.65rem;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex:0 0 auto;}
+
+/* ================= TEAM CARDS — simple human ================= */
+.team-card{
+  position:relative;border-radius:1rem;padding:1.75rem 1.25rem 1.5rem;text-align:center;
+  background:var(--surface);border:1px solid var(--border);
+  overflow:hidden;
+  transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+}
+.team-card:hover{transform:translateY(-3px);border-color:#c7d7f8;box-shadow:var(--shadow);}
+.team-avatar{
+  width:64px;height:64px;border-radius:1rem;margin:0 auto .9rem;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:1.2rem;color:#fff;
+  background:var(--c1);
+  transition:transform .22s ease;
+}
+.team-card:hover .team-avatar{transform:translateY(-2px);}
+.role-chip{
+  display:inline-block;margin-top:.55rem;padding:.32rem .75rem;border-radius:999px;
+  font-size:.6rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  background:var(--surface-soft);border:1px solid var(--border);color:var(--muted);
+}
+
+/* ================= MODALS ================= */
+.modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:1rem;}
+.modal.open{display:flex;}
+.modal-backdrop{position:absolute;inset:0;background:rgba(2,6,23,.62);backdrop-filter:blur(7px);}
+.modal-panel{
+  position:relative;z-index:1;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;
+  border-radius:1rem;padding:1.5rem;background:var(--surface-solid);
+  border:1px solid var(--border);box-shadow:var(--shadow);
+}
+@keyframes pop{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* ================= SWITCH / SEGMENT ================= */
+.switch{position:relative;width:48px;height:28px;border-radius:999px;background:#cbd5e1;cursor:pointer;transition:background .2s ease;flex:0 0 auto;border:none;}
+.switch::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .2s ease;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+.switch.on{background:var(--brand);}
+.switch.on::after{transform:translateX(20px);}
+.seg{display:flex;gap:.3rem;background:var(--surface-soft);padding:.3rem;border-radius:.8rem;border:1px solid var(--border);}
+.seg button{flex:1;padding:.55rem .3rem;border-radius:.6rem;font-size:.72rem;font-weight:700;color:var(--muted);border:none;background:transparent;cursor:pointer;transition:background .2s ease,color .2s ease;}
+.seg button.active{background:var(--surface-solid);color:var(--brand);box-shadow:0 1px 3px rgba(15,23,42,.15);}
+
+/* ================= EXPORT TILES ================= */
+.export-tile{
+  display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:1.1rem .6rem;
+  border-radius:.9rem;background:var(--surface);border:1px solid var(--border);
+  cursor:pointer;transition:transform .2s ease,border-color .2s ease;color:var(--text);
+}
+.export-tile i{font-size:1.4rem;margin-bottom:.15rem;}
+.export-tile span{font-size:.78rem;font-weight:700;}
+.export-tile small{font-size:.58rem;color:var(--muted);font-weight:600;letter-spacing:.04em;}
+.export-tile:hover{transform:translateY(-2px);border-color:#bfdbfe;}
+
+/* ================= MISC ================= */
+.live-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulse 2s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}70%{box-shadow:0 0 0 10px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+
+#toast{
+  position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));right:16px;left:16px;z-index:500;
+  display:flex;justify-content:flex-end;pointer-events:none;
+  transform:translateY(140%);transition:transform .5s cubic-bezier(.2,.8,.2,1);
+  max-width:calc(100vw - 32px);margin-left:auto;
+}
+@media(min-width:640px){#toast{left:auto;}}
+@media(min-width:1024px){#toast{bottom:24px;}}
+#toast.show{transform:translateY(0);}
+.toast-inner{
+  background:#0f172a;color:#fff;
+  padding:.8rem 1.1rem;border-radius:.8rem;font-size:.75rem;font-weight:600;
+  display:flex;align-items:center;gap:.6rem;pointer-events:auto;
+  box-shadow:0 10px 28px -12px rgba(0,0,0,.5);border:1px solid rgba(148,163,184,.25);
+  max-width:100%;
+}
+@media(max-width:639px){.toast-inner{width:100%;justify-content:flex-start;}}
+
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(148,163,184,.45);border-radius:10px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(59,130,246,.7);}
+
+@media(max-width:400px){ .metric-value{font-size:1.35rem;} }
+</style>
 </head>
+
 <body>
+<div class="orbs" aria-hidden="true"><div class="orb a"></div><div class="orb b"></div><div class="orb c"></div></div>
 
-  <main class="gate">
-    <div class="gate-card">
-      <div class="gate-brand" aria-label="Smart Factory AI">Smart<strong>Factory</strong> <span>AI</span></div>
-      <p class="gate-sub">Revolutionizing manufacturing with artificial intelligence.</p>
-      <p class="gate-question">Masuk sebagai siapa?</p>
+<div id="app-shell" class="pos-left">
 
-      <div class="gate-options">
-        <button class="gate-btn guest" id="btnGuest" type="button">
-          <span class="gate-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </span>
-          <span class="gate-btn-text">Tamu<small>Lihat dashboard & live sorting</small></span>
-        </button>
-
-        <button class="gate-btn admin" id="btnAdmin" type="button" aria-expanded="false" aria-controls="adminLock">
-          <span class="gate-ico" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          </span>
-          <span class="gate-btn-text">Admin<small>Kamera AI, kontrol mode & database</small></span>
-        </button>
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside id="sidebar">
+    <div class="flex items-center gap-3 px-1">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white"
+           style="background:var(--brand)">
+        <i class="fas fa-robot"></i>
       </div>
-
-      <div class="admin-lock" id="adminLock" hidden>
-        <label class="lock-label" for="adminPass">Password Admin</label>
-        <div class="lock-row">
-          <input type="password" id="adminPass" class="lock-input" placeholder="Masukkan password" autocomplete="off" inputmode="numeric">
-          <button type="button" class="lock-go" id="btnAdminGo">Masuk</button>
-        </div>
-        <p class="lock-err" id="lockErr" role="alert" hidden>Password salah, coba lagi.</p>
+      <div class="leading-tight">
+        <p class="font-display font-extrabold text-[15px]">VERNOVA</p>
+        <p class="text-[10px] font-semibold t-muted" data-i18n="brand.tag">Smart Sorting System</p>
       </div>
     </div>
 
-    <p class="gate-foot">Smart Factory AI &copy; 2026 · Projek Kompetisi Robotik Internasional</p>
+    <nav class="flex flex-col gap-1.5 mt-2">
+      <button onclick="window.showPage('dash')" id="nav-dash" class="sidebar-btn active">
+        <i class="fas fa-chart-line"></i><span data-i18n="nav.dash">Factory Dashboard</span>
+      </button>
+      <button onclick="window.showPage('team')" id="nav-team" class="sidebar-btn">
+        <i class="fas fa-users"></i><span data-i18n="nav.team">VERNOVA Team</span>
+      </button>
+      <button onclick="window.showPage('help')" id="nav-help" class="sidebar-btn">
+        <i class="fas fa-diagram-project"></i><span data-i18n="nav.arch">Architecture</span>
+      </button>
+    </nav>
+
+    <div class="mt-auto flex flex-col gap-2">
+      <button onclick="window.openModal('settings-modal')" class="sidebar-btn">
+        <i class="fas fa-sliders"></i><span data-i18n="nav.settings">Settings</span>
+      </button>
+      <div class="rounded-xl p-4 border" style="background:var(--surface-soft);border-color:var(--border)">
+        <p class="text-[10px] font-bold" style="color:var(--brand)">Developer Team</p>
+        <p class="font-display text-sm font-bold mt-1">VERNOVA</p>
+        <p class="text-[11px] t-muted mt-1 leading-relaxed" data-i18n="brand.teamLine">Robotics · AI · Web Engineering</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="main-area">
+
+    <!-- TOPBAR: HP = hamburger + status ringkas, Desktop = status + aksi penuh -->
+    <header class="topbar">
+      <button id="btn-menu" class="icon-btn" aria-label="Buka menu navigasi" aria-expanded="false" onclick="window.toggleDrawer(true)">
+        <i class="fas fa-bars text-sm"></i>
+      </button>
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0 lg:hidden"
+           style="background:var(--brand)">
+        <i class="fas fa-robot text-sm"></i>
+      </div>
+
+      <div class="status-group" role="status" aria-label="Status koneksi">
+        <div id="status-bt" class="pill">BT: OFFLINE</div>
+        <div id="status-fb" class="pill">FB: OFFLINE</div>
+        <div id="status-tm" class="pill">AI: STANDBY</div>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border" style="background:var(--surface-soft);border-color:var(--border)">
+          <i class="fas fa-clock text-[10px]" style="color:var(--brand)"></i>
+          <span id="live-clock" class="font-mono text-xs font-bold">00:00:00</span>
+        </div>
+
+        <button id="btn-open-fb" class="icon-btn" title="Firebase Configuration">
+          <i class="fas fa-database text-xs"></i>
+        </button>
+
+        <button id="btn-conn-bt" class="btn-primary px-3 py-2 text-[10px] flex items-center gap-2">
+          <i class="fab fa-bluetooth-b"></i><span class="hidden sm:inline" data-i18n="btn.connect">CONNECT</span>
+        </button>
+
+        <button id="btn-dis-bt" disabled class="icon-btn danger" title="Disconnect">
+          <i class="fas fa-xmark text-xs"></i>
+        </button>
+
+        <button onclick="window.openModal('settings-modal')" class="icon-btn" title="Settings">
+          <i class="fas fa-gear text-xs"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- SCROLL AREA -->
+    <div class="scroll-area">
+
+      <!-- ============ PAGE: DASHBOARD ============ -->
+      <section id="page-dash" class="page active">
+
+        <!-- HERO -->
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-5">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="live-dot"></span>
+              <span class="text-[9px] font-black uppercase tracking-[.2em]" style="color:var(--brand)">Live Production</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-black tracking-tight" data-i18n="dash.title">AI Smart Factory Dashboard</h1>
+            <p class="text-xs t-muted mt-1" data-i18n="dash.sub">Real-time object sorting analytics.</p>
+          </div>
+          <div class="flex items-center gap-2 sm:hidden">
+            <span id="live-clock-m" class="font-mono text-sm font-bold">00:00:00</span>
+          </div>
+        </div>
+
+        <!-- CONTROL STRIP: HP full-width, laptop sejajar -->
+        <div class="card p-4 mb-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div class="flex items-center gap-2.5 w-full sm:w-auto">
+            <label class="text-[10px] font-black uppercase tracking-[.12em] t-muted whitespace-nowrap" data-i18n="dash.mode">Sorting Mode</label>
+            <select id="mode-selector" onchange="window.changeSortingMode(this.value)" class="inp flex-1 sm:flex-none !py-2.5 !px-3 cursor-pointer sm:!w-auto min-h-[44px]">
+              <option value="Servo" data-i18n="dash.modeServo">🤖 Servo Mode</option>
+              <option value="Arm" data-i18n="dash.modeArm">🦾 Arm Mode</option>
+            </select>
+          </div>
+          <button onclick="window.openExportModal()" class="btn-primary w-full sm:w-auto px-4 py-3 sm:py-2.5 text-[12px] sm:text-[11px] flex items-center justify-center gap-2 min-h-[44px]">
+            <i class="fas fa-file-export"></i><span data-i18n="btn.export">Export Report</span>
+          </button>
+        </div>
+
+        <!-- METRICS: Total + 3 warna + Error -->
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-5">
+          <div class="card card-hover p-4 sm:p-5">
+            <div class="metric-icon" style="background:#e8effe;color:var(--brand)"><i class="fas fa-boxes-stacked"></i></div>
+            <p class="metric-label" data-i18n="metric.total">Total Processed</p>
+            <p id="stat-total" class="metric-value mt-1" style="color:var(--brand)">0</p>
+          </div>
+          <div class="card card-hover p-4 sm:p-5">
+            <div class="metric-icon" style="background:#fef3c7;color:#b45309"><i class="fas fa-circle"></i></div>
+            <p class="metric-label" data-i18n="metric.yellow">Kuning</p>
+            <p id="stat-kuning" class="metric-value mt-1 t-main">0</p>
+          </div>
+          <div class="card card-hover p-4 sm:p-5">
+            <div class="metric-icon" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-circle"></i></div>
+            <p class="metric-label" data-i18n="metric.blue">Biru</p>
+            <p id="stat-biru" class="metric-value mt-1 t-main">0</p>
+          </div>
+          <div class="card card-hover p-4 sm:p-5">
+            <div class="metric-icon" style="background:#fee2e2;color:#b91c1c"><i class="fas fa-circle"></i></div>
+            <p class="metric-label" data-i18n="metric.red">Merah</p>
+            <p id="stat-merah" class="metric-value mt-1 t-main">0</p>
+          </div>
+          <div class="card card-hover p-4 sm:p-5 col-span-2 md:col-span-1" style="border-color:#fecaca">
+            <div class="metric-icon" style="background:#fef2f2;color:#dc2626"><i class="fas fa-triangle-exclamation"></i></div>
+            <p class="metric-label" data-i18n="metric.error">Error</p>
+            <p id="stat-error" class="metric-value mt-1" style="color:#dc2626">0</p>
+          </div>
+        </div>
+
+        <!-- CONTENT GRID -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-5 mb-5">
+
+          <!-- AI VISION -->
+          <div class="card p-4 sm:p-5 flex flex-col">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="card-title"><i class="fas fa-camera-retro"></i><span data-i18n="vision.title">AI Vision</span></h3>
+              <span class="live-dot"></span>
+            </div>
+
+            <input type="text" id="tm-url-input" data-i18n-ph="vision.ph"
+                   placeholder="Teachable Machine Model URL..." class="inp mb-2.5">
+
+            <div class="flex gap-2 mb-3">
+              <button id="btn-start-tm" onclick="initTM()" class="btn-primary flex-1 py-3 sm:py-2.5 text-[12px] sm:text-[11px] min-h-[44px]">START AI</button>
+              <button id="btn-pause-ai" onclick="togglePause()" disabled class="btn-warn flex-1 py-3 sm:py-2.5 text-[12px] sm:text-[11px] hidden min-h-[44px]">PAUSE</button>
+            </div>
+
+            <div id="webcam-container" class="webcam-wrap mb-3">
+              <div class="text-center px-4 py-8">
+                <i class="fas fa-video text-2xl mb-2 t-muted opacity-50"></i>
+                <p class="text-[11px] t-muted font-semibold" data-i18n="vision.standby">Kamera Siaga</p>
+              </div>
+              <div id="pause-overlay">
+                <i class="fas fa-pause-circle text-white text-3xl"></i>
+                <span class="text-white font-bold text-[11px]" data-i18n="vision.pausedOverlay">Sistem Dijeda Sementara</span>
+              </div>
+            </div>
+
+            <div id="label-container" class="space-y-1.5"></div>
+          </div>
+
+          <!-- CHARTS + QC -->
+          <div class="xl:col-span-2 flex flex-col gap-4 sm:gap-5">
+            <div class="card p-4 sm:p-5">
+              <h3 class="card-title mb-4"><i class="fas fa-chart-column"></i><span data-i18n="chart.title">Sorting Distribution</span></h3>
+              <div class="h-[210px] sm:h-[240px]"><canvas id="sortingChart"></canvas></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+              <div class="card p-4 sm:p-5">
+                <h3 class="card-title mb-3"><i class="fas fa-sliders"></i><span data-i18n="qc.title">Manual QC &amp; Control</span></h3>
+                <div class="flex flex-col gap-2">
+                  <button onclick="window.logMissort()" class="btn-ghost w-full py-2.5 text-[11px] flex items-center justify-center gap-2">
+                    <i class="fas fa-triangle-exclamation" style="color:#f97316"></i>
+                    <span data-i18n="qc.missort">Log Miss-sort</span>
+                    (<span id="stat-gagal" class="font-black">0</span> <span data-i18n="qc.error">Error</span>)
+                  </button>
+                  <button onclick="window.forceTimeout()" class="btn-ghost w-full py-2.5 text-[11px] flex items-center justify-center gap-2">
+                    <i class="fas fa-forward" style="color:#a855f7"></i><span data-i18n="qc.force">Force Timeout</span>
+                  </button>
+                </div>
+              </div>
+              <div class="card p-4 sm:p-5 flex flex-col justify-end">
+                <h3 class="card-title mb-3"><i class="fas fa-database"></i><span data-i18n="qc.system">System</span></h3>
+                <button onclick="window.resetData()" class="w-full py-2.5 text-[11px] font-bold rounded-xl transition flex items-center justify-center gap-2"
+                        style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.28)">
+                  <i class="fas fa-rotate-left"></i><span data-i18n="qc.reset">Reset Database</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LIVE HISTORY -->
+        <div class="card p-4 sm:p-5">
+          <h3 class="card-title mb-3"><i class="fas fa-clock-rotate-left"></i><span data-i18n="log.title">Live History</span></h3>
+          <div class="space-y-2 max-h-[320px] overflow-y-auto pr-1" id="log-panel">
+            <p class="text-[11px] t-muted italic" data-i18n="log.empty">Belum ada aktivitas.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PAGE: TEAM ============ -->
+      <section id="page-team" class="page">
+        <div class="text-center max-w-3xl mx-auto mb-8 sm:mb-12">
+          <p class="text-[11px] font-bold mb-2" style="color:var(--brand)" data-i18n="team.eyebrow">The Team Behind The Machine</p>
+          <h1 class="font-display text-[2rem] leading-none sm:text-5xl font-extrabold mb-3 t-main">
+            VERNOVA
+          </h1>
+          <p class="text-xs sm:text-sm t-muted leading-relaxed max-w-xl mx-auto" data-i18n="team.desc">
+            A synergy of mechanics, artificial intelligence and electronics — building an autonomous smart sorting system for the international stage.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 max-w-5xl mx-auto">
+          <div class="team-card" style="--c1:#b45309">
+            <div class="team-avatar">HA</div>
+            <h3 class="font-bold text-base t-main">Hamzah Aufa Ibrahim</h3>
+            <span class="role-chip" data-i18n="team.role1">Mekanik</span>
+            <p class="text-[12px] t-muted mt-3 leading-relaxed" data-i18n="team.desc1">Mechanical design, chassis fabrication and sorting actuator assembly.</p>
+          </div>
+
+          <div class="team-card" style="--c1:#1d4ed8">
+            <div class="team-avatar">MA</div>
+            <h3 class="font-bold text-base t-main">Muhammad Alif Al Hafidz</h3>
+            <span class="role-chip" data-i18n="team.role2">Programmer Website dan AI</span>
+            <p class="text-[12px] t-muted mt-3 leading-relaxed" data-i18n="team.desc2">Dashboard engineering, real-time data pipeline and computer-vision model training.</p>
+          </div>
+
+          <div class="team-card" style="--c1:#0f766e">
+            <div class="team-avatar">NA</div>
+            <h3 class="font-bold text-base t-main">Naufal Ahmad Bilal</h3>
+            <span class="role-chip" data-i18n="team.role3">Programmer Code Otak Robot dan Elektronika</span>
+            <p class="text-[12px] t-muted mt-3 leading-relaxed" data-i18n="team.desc3">Embedded firmware, micro:bit UART protocol and electronic wiring.</p>
+          </div>
+        </div>
+
+        <div class="card p-6 max-w-5xl mx-auto mt-8 text-center">
+          <p class="font-display text-xs font-bold" style="color:var(--brand)">VERNOVA · 2026</p>
+          <p class="text-[11px] t-muted mt-2" data-i18n="team.footer">Engineered for the International Robotics &amp; AI Competition.</p>
+        </div>
+      </section>
+
+      <!-- ============ PAGE: ARCHITECTURE ============ -->
+      <section id="page-help" class="page">
+        <h1 class="text-xl md:text-2xl font-black mb-1" data-i18n="arch.title">System Architecture</h1>
+        <p class="text-xs t-muted mb-6" data-i18n="arch.sub">How data travels from the camera to the cloud.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+          <div class="card card-hover p-5">
+            <div class="metric-icon" style="background:rgba(59,130,246,.15);color:var(--brand)"><i class="fas fa-eye"></i></div>
+            <h3 class="font-bold text-sm mb-2">1 · Computer Vision</h3>
+            <p class="text-[11px] t-muted leading-relaxed">TensorFlow.js + Teachable Machine classify every object in the browser with a confidence threshold of 85%.</p>
+          </div>
+          <div class="card card-hover p-5">
+            <div class="metric-icon" style="background:rgba(6,182,212,.15);color:#06b6d4"><i class="fab fa-bluetooth-b"></i></div>
+            <h3 class="font-bold text-sm mb-2">2 · BLE UART Bridge</h3>
+            <p class="text-[11px] t-muted leading-relaxed">Web Bluetooth writes the detected colour to the Nordic UART TX characteristic of the BBC micro:bit.</p>
+          </div>
+          <div class="card card-hover p-5">
+            <div class="metric-icon" style="background:rgba(168,85,247,.15);color:#a855f7"><i class="fas fa-microchip"></i></div>
+            <h3 class="font-bold text-sm mb-2">3 · Robot Brain</h3>
+            <p class="text-[11px] t-muted leading-relaxed">The micro:bit drives the servo/arm, then echoes the colour back as a handshake confirmation.</p>
+          </div>
+          <div class="card card-hover p-5">
+            <div class="metric-icon" style="background:rgba(34,197,94,.15);color:#22c55e"><i class="fas fa-check-double"></i></div>
+            <h3 class="font-bold text-sm mb-2">4 · Handshake &amp; QC</h3>
+            <p class="text-[11px] t-muted leading-relaxed">A 12-second watchdog timer flags any missing acknowledgement as a timeout error for quality control.</p>
+          </div>
+          <div class="card card-hover p-5">
+            <div class="metric-icon" style="background:rgba(234,179,8,.15);color:#eab308"><i class="fas fa-fire"></i></div>
+            <h3 class="font-bold text-sm mb-2">5 · Realtime Database</h3>
+            <p class="text-[11px] t-muted leading-relaxed">Firebase RTDB stores each event with a timestamp; every connected dashboard stays in sync instantly.</p>
+          </div>
+          <div class="card card-hover p-5">
+            <div class="metric-icon" style="background:rgba(239,68,68,.15);color:#ef4444"><i class="fas fa-file-export"></i></div>
+            <h3 class="font-bold text-sm mb-2">6 · Rich Reporting</h3>
+            <p class="text-[11px] t-muted leading-relaxed">Styled XLSX, PDF and DOCX reports with the VERNOVA header, colour-coded rows and full summaries.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
   </main>
 
-  <script>
-    (function () {
-      var ADMIN_PASS = '098765';
-      var btnGuest = document.getElementById('btnGuest');
-      var btnAdmin = document.getElementById('btnAdmin');
-      var lock = document.getElementById('adminLock');
-      var pass = document.getElementById('adminPass');
-      var go = document.getElementById('btnAdminGo');
-      var err = document.getElementById('lockErr');
+  <!-- ===================== TOP BAR NAV (DESKTOP mode Atas saja) ===================== -->
+  <nav id="bottombar" aria-label="Navigasi desktop mode atas">
+    <!-- Branding hanya tampil di mode Atas (desktop) -->
+    <div class="bottom-brand">
+      <div class="brand-logo"><i class="fas fa-robot"></i></div>
+      <div class="brand-text">
+        <span class="brand-name">VERNOVA</span>
+        <span class="brand-sub" data-i18n="brand.tag">Smart Sorting System</span>
+      </div>
+    </div>
 
-      function setAdmin(on) {
-        try {
-          if (on) sessionStorage.setItem('sfai_admin', '1');
-          else sessionStorage.removeItem('sfai_admin');
-        } catch (e) {}
+    <div class="bottom-tabs">
+      <button onclick="window.showPage('dash')" id="bnav-dash" class="tab-btn active">
+        <i class="fas fa-chart-line"></i><span data-i18n="nav.dashShort">Dashboard</span>
+      </button>
+      <button onclick="window.showPage('team')" id="bnav-team" class="tab-btn">
+        <i class="fas fa-users"></i><span data-i18n="nav.teamShort">Team</span>
+      </button>
+      <button onclick="window.showPage('help')" id="bnav-help" class="tab-btn">
+        <i class="fas fa-diagram-project"></i><span data-i18n="nav.archShort">System</span>
+      </button>
+      <button onclick="window.openModal('settings-modal')" class="tab-btn">
+        <i class="fas fa-sliders"></i><span data-i18n="nav.settingsShort">Settings</span>
+      </button>
+    </div>
+
+    <!-- Indikator live hanya tampil di mode Atas (desktop) -->
+    <div class="bottom-spacer">
+      <span class="live-dot"></span>
+      <span class="text-[11px] font-bold t-muted">Live</span>
+    </div>
+  </nav>
+</div>
+
+<!-- ===================== MOBILE DRAWER MENU (HP) ===================== -->
+<div id="drawer-backdrop" onclick="window.toggleDrawer(false)"></div>
+<aside id="mobile-drawer" aria-hidden="true" aria-label="Menu navigasi seluler">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0"
+         style="background:var(--brand)">
+      <i class="fas fa-robot"></i>
+    </div>
+    <div class="leading-tight flex-1">
+      <p class="font-display font-extrabold text-[15px]">VERNOVA</p>
+      <p class="text-[10px] font-semibold t-muted" data-i18n="brand.tag">Smart Sorting System</p>
+    </div>
+    <button class="icon-btn" aria-label="Tutup menu" onclick="window.toggleDrawer(false)">
+      <i class="fas fa-xmark text-xs"></i>
+    </button>
+  </div>
+
+  <div class="flex items-center gap-2 px-3 py-2.5 rounded-xl border" style="background:var(--surface-soft);border-color:var(--border)">
+    <span class="live-dot"></span>
+    <span class="text-[10px] font-black uppercase tracking-[.15em]" style="color:var(--brand)">Live Production</span>
+    <span id="live-clock-drawer" class="font-mono text-[11px] font-bold ml-auto">00:00:00</span>
+  </div>
+
+  <nav class="flex flex-col gap-1.5" aria-label="Menu utama">
+    <button onclick="window.showPage('dash')" id="mnav-dash" class="mnav-btn active">
+      <i class="fas fa-chart-line"></i><span data-i18n="nav.dash">Factory Dashboard</span>
+    </button>
+    <button onclick="window.showPage('team')" id="mnav-team" class="mnav-btn">
+      <i class="fas fa-users"></i><span data-i18n="nav.team">VERNOVA Team</span>
+    </button>
+    <button onclick="window.showPage('help')" id="mnav-help" class="mnav-btn">
+      <i class="fas fa-diagram-project"></i><span data-i18n="nav.arch">Architecture</span>
+    </button>
+  </nav>
+
+  <div class="h-px" style="background:var(--border)"></div>
+
+  <div class="flex flex-col gap-1.5">
+    <button onclick="window.toggleDrawer(false);window.openModal('settings-modal')" class="mnav-btn">
+      <i class="fas fa-sliders"></i><span data-i18n="nav.settings">Settings</span>
+    </button>
+    <button onclick="window.toggleDrawer(false);document.getElementById('btn-open-fb')?.click()" class="mnav-btn">
+      <i class="fas fa-database"></i><span>Firebase Setup</span>
+    </button>
+    <button onclick="window.toggleDrawer(false);window.openExportModal()" class="mnav-btn">
+      <i class="fas fa-file-export"></i><span data-i18n="btn.export">Export Report</span>
+    </button>
+  </div>
+
+  <div class="mt-auto rounded-xl p-4 border" style="background:var(--surface-soft);border-color:var(--border)">
+    <p class="text-[10px] font-bold" style="color:var(--brand)">Developer Team</p>
+    <p class="font-display text-sm font-bold mt-1">VERNOVA</p>
+    <p class="text-[11px] t-muted mt-1 leading-relaxed" data-i18n="brand.teamLine">Robotics · AI · Web Engineering</p>
+  </div>
+</aside>
+
+<!-- ===================== MODAL: SETTINGS ===================== -->
+<div id="settings-modal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-black text-base flex items-center gap-2"><i class="fas fa-sliders" style="color:var(--brand)"></i><span data-i18n="set.title">Settings</span></h3>
+      <button onclick="window.closeModal('settings-modal')" class="icon-btn"><i class="fas fa-xmark text-xs"></i></button>
+    </div>
+
+    <!-- Language -->
+    <div class="mb-5">
+      <p class="text-[10px] font-black uppercase tracking-[.15em] t-muted mb-2" data-i18n="set.language">Language</p>
+      <div class="seg" id="lang-seg">
+        <button data-lang="id" onclick="window.setLanguage('id')">🇮🇩 Indonesia</button>
+        <button data-lang="en" onclick="window.setLanguage('en')">🇬🇧 English</button>
+      </div>
+    </div>
+
+    <!-- Theme -->
+    <div class="mb-5 flex items-center justify-between p-4 rounded-2xl border" style="background:var(--surface-soft);border-color:var(--border)">
+      <div>
+        <p class="text-xs font-bold" data-i18n="set.theme">Dark Mode</p>
+        <p class="text-[10px] t-muted mt-0.5" data-i18n="set.themeSub">Toggle the futuristic dark interface</p>
+      </div>
+      <button id="theme-switch" class="switch" onclick="window.toggleTheme()"></button>
+    </div>
+
+    <!-- Bar position: kiri / kanan / atas -->
+    <div class="mb-2">
+      <p class="text-[11px] font-bold t-muted mb-2" data-i18n="set.bar">Navigation Position</p>
+      <div class="seg" id="bar-seg">
+        <button data-pos="left" onclick="window.setBarPosition('left')"><i class="fas fa-arrow-left mr-1"></i> <span data-i18n="set.barLeft">Left</span></button>
+        <button data-pos="right" onclick="window.setBarPosition('right')"><i class="fas fa-arrow-right mr-1"></i> <span data-i18n="set.barRight">Right</span></button>
+        <button data-pos="top" onclick="window.setBarPosition('top')"><i class="fas fa-arrow-up mr-1"></i> <span data-i18n="set.barTop">Top</span></button>
+      </div>
+      <p class="text-[11px] t-muted mt-2 leading-relaxed">
+        <i class="fas fa-circle-info mr-1"></i>
+        <span data-i18n="set.barHint">HP selalu memakai menu drawer (tombol ☰). Posisi Kiri/Kanan/Atas hanya berlaku di laptop/desktop ≥1024px.</span>
+      </p>
+    </div>
+
+    <div class="mt-6 pt-5 border-t flex items-center justify-between" style="border-color:var(--border)">
+      <p class="text-[10px] t-muted font-bold">VERNOVA · v2.1</p>
+      <button onclick="window.openModal('team-modal')" class="btn-primary px-4 py-2 text-[10px]">
+        <i class="fas fa-users mr-1"></i> <span data-i18n="set.viewTeam">View Team</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: FIREBASE ===================== -->
+<div id="fb-modal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-black text-base flex items-center gap-2"><i class="fas fa-database" style="color:var(--brand)"></i><span data-i18n="fb.title">Firebase Realtime DB</span></h3>
+      <button onclick="window.closeModal('fb-modal')" class="icon-btn"><i class="fas fa-xmark text-xs"></i></button>
+    </div>
+
+    <div class="space-y-3">
+      <div>
+        <label class="text-[10px] font-black uppercase tracking-[.13em] t-muted" data-i18n="fb.key">API Key</label>
+        <input type="password" id="fb-key" placeholder="AIza..." class="inp mt-1.5">
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase tracking-[.13em] t-muted" data-i18n="fb.url">Database URL</label>
+        <input type="text" id="fb-url" placeholder="https://xxx.firebaseio.com" class="inp mt-1.5">
+      </div>
+      <div>
+        <label class="text-[10px] font-black uppercase tracking-[.13em] t-muted" data-i18n="fb.path">Database Path</label>
+        <input type="text" id="fb-path" value="smart_factory/sorting_line" class="inp mt-1.5">
+      </div>
+    </div>
+
+    <button id="btn-conn-fb" class="btn-primary w-full py-3 text-xs mt-5">
+      <i class="fas fa-cloud-arrow-up mr-2"></i><span data-i18n="fb.sync">SYNC FIREBASE</span>
+    </button>
+  </div>
+</div>
+
+<!-- ===================== MODAL: EXPORT ===================== -->
+<div id="export-modal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-panel">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-black text-base flex items-center gap-2"><i class="fas fa-file-export" style="color:var(--brand)"></i><span data-i18n="exp.title">Export Report</span></h3>
+      <button onclick="window.closeModal('export-modal')" class="icon-btn"><i class="fas fa-xmark text-xs"></i></button>
+    </div>
+
+    <div class="grid grid-cols-3 sm:grid-cols-5 gap-2.5 mb-5 p-3 rounded-2xl border" style="background:var(--surface-soft);border-color:var(--border)">
+      <div class="text-center">
+        <p class="metric-label" data-i18n="metric.total">Total</p>
+        <p id="exp-total" class="text-lg font-black" style="color:var(--brand)">0</p>
+      </div>
+      <div class="text-center">
+        <p class="metric-label" data-i18n="metric.yellow">Kuning</p>
+        <p id="exp-kuning" class="text-lg font-black" style="color:#b45309">0</p>
+      </div>
+      <div class="text-center">
+        <p class="metric-label" data-i18n="metric.blue">Biru</p>
+        <p id="exp-biru" class="text-lg font-black" style="color:#1d4ed8">0</p>
+      </div>
+      <div class="text-center">
+        <p class="metric-label" data-i18n="metric.red">Merah</p>
+        <p id="exp-merah" class="text-lg font-black" style="color:#b91c1c">0</p>
+      </div>
+      <div class="text-center col-span-3 sm:col-span-1 rounded-xl py-1" style="background:#fef2f2;border:1px solid #fecaca">
+        <p class="metric-label" data-i18n="metric.error">Error</p>
+        <p id="exp-gagal" class="text-lg font-black" style="color:#dc2626">0</p>
+      </div>
+    </div>
+
+    <p class="text-[10px] font-black uppercase tracking-[.15em] t-muted mb-3" data-i18n="exp.choose">Choose a format</p>
+
+    <div class="grid grid-cols-2 gap-3">
+      <button class="export-tile" onclick="window.doExport('xlsx')">
+        <i class="fas fa-file-excel" style="color:#16a34a"></i><span>Excel</span><small>.XLSX · COLORED</small>
+      </button>
+      <button class="export-tile" onclick="window.doExport('pdf')">
+        <i class="fas fa-file-pdf" style="color:#dc2626"></i><span>PDF</span><small>.PDF · PRINT READY</small>
+      </button>
+      <button class="export-tile" onclick="window.doExport('docx')">
+        <i class="fas fa-file-word" style="color:#2563eb"></i><span>Word</span><small>.DOCX · EDITABLE</small>
+      </button>
+      <button class="export-tile" onclick="window.doExport('csv')">
+        <i class="fas fa-file-csv" style="color:#0891b2"></i><span>CSV</span><small>.CSV · RAW DATA</small>
+      </button>
+    </div>
+
+    <p class="text-[10px] t-muted mt-4 text-center leading-relaxed" data-i18n="exp.note">
+      Reports include the VERNOVA header, sorting summary, timestamps and colour-coded rows.
+    </p>
+  </div>
+</div>
+
+<!-- ===================== MODAL: TEAM ===================== -->
+<div id="team-modal" class="modal">
+  <div class="modal-backdrop"></div>
+  <div class="modal-panel !max-w-3xl">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-display font-extrabold text-lg t-main">VERNOVA</h3>
+      <button onclick="window.closeModal('team-modal')" class="icon-btn"><i class="fas fa-xmark text-xs"></i></button>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="team-card" style="--c1:#b45309">
+        <div class="team-avatar" style="width:52px;height:52px;font-size:1rem">HA</div>
+        <h3 class="font-bold text-sm t-main">Hamzah Aufa Ibrahim</h3>
+        <span class="role-chip" data-i18n="team.role1">Mekanik</span>
+      </div>
+      <div class="team-card" style="--c1:#1d4ed8">
+        <div class="team-avatar" style="width:52px;height:52px;font-size:1rem">MA</div>
+        <h3 class="font-bold text-sm t-main">Muhammad Alif Al Hafidz</h3>
+        <span class="role-chip" data-i18n="team.role2">Programmer Website dan AI</span>
+      </div>
+      <div class="team-card" style="--c1:#0f766e">
+        <div class="team-avatar" style="width:52px;height:52px;font-size:1rem">NA</div>
+        <h3 class="font-bold text-sm t-main">Naufal Ahmad Bilal</h3>
+        <span class="role-chip" data-i18n="team.role3">Programmer Code Otak Robot dan Elektronika</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TOAST ===================== -->
+<div id="toast"><div class="toast-inner"><i class="fas fa-circle-info" style="color:#60a5fa"></i><span id="toast-msg">Initialized!</span></div></div>
+
+<!-- ==================================================================== -->
+<!-- ============================ APP SCRIPT ============================= -->
+<!-- ==================================================================== -->
+<script type="module">
+import { initializeApp, getApps, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getDatabase, ref, onValue, update, set } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+/* ------------------------------------------------------------------ */
+/*  BLE UART UUIDs                                                     */
+/* ------------------------------------------------------------------ */
+const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const UART_TX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+const UART_RX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+
+/* ------------------------------------------------------------------ */
+/*  STATE (core logic preserved + UI state)                            */
+/* ------------------------------------------------------------------ */
+const state = {
+  db: null, currentPath: "", unsubscribe: null,
+  device: null, txChar: null, rxChar: null, bleConnected: false, bleBuffer: "",
+  sortingData: { kuning: 0, biru: 0, merah: 0, gagal: 0, total: 0 },
+  excelLogs: [],
+  chart: null,
+  chartYMax: 5,               // ← tambahkan ini
+  isCoolingDown: false,
+  pendingDetection: null,
+  isPaused: false,
+  timeoutTimer: null,
+  lang: 'id', theme: 'light', barPos: 'left', aiReady: false
+};
+
+const $ = (id) => document.getElementById(id);
+
+/* ------------------------------------------------------------------ */
+/*  i18n DICTIONARY                                                    */
+/* ------------------------------------------------------------------ */
+const I18N = {
+  id: {
+    'brand.tag':'Smart Sorting System','brand.teamLine':'Robotika · AI · Web Engineering',
+    'nav.dash':'Dasbor Pabrik','nav.dashShort':'Dasbor','nav.team':'Tim VERNOVA','nav.teamShort':'Tim',
+    'nav.arch':'Arsitektur','nav.archShort':'Sistem','nav.settings':'Pengaturan','nav.settingsShort':'Setelan',
+    'btn.connect':'HUBUNGKAN','btn.export':'Ekspor Laporan',
+    'dash.title':'Dasbor Pabrik Pintar AI','dash.sub':'Analitik penyortiran objek secara real-time.',
+    'dash.mode':'Mode Sortir','dash.modeServo':'Mode Servo','dash.modeArm':'Mode Arm',
+    'metric.total':'Total Diproses','metric.yellow':'Kuning','metric.blue':'Biru','metric.red':'Merah','metric.error':'Error',
+    'vision.title':'AI Vision','vision.ph':'URL Model Teachable Machine...','vision.start':'MULAI AI',
+    'vision.loading':'MEMUAT...','vision.online':'AI AKTIF','vision.pause':'JEDA','vision.resume':'LANJUT',
+    'vision.standby':'Kamera Siaga','vision.pausedOverlay':'Sistem Dijeda Sementara',
+    'chart.title':'Distribusi Penyortiran','qc.title':'QC Manual & Kontrol','qc.missort':'Catat Salah Sortir',
+    'qc.error':'Error','qc.force':'Paksa Timeout','qc.system':'Sistem','qc.reset':'Reset Database',
+    'log.title':'Riwayat Langsung','log.empty':'Belum ada aktivitas.',
+    'team.eyebrow':'Tim Di Balik Mesin Ini',
+    'team.desc':'Sinergi antara mekanik, kecerdasan artifisial, dan elektronika — membangun sistem penyortiran cerdas otonom untuk panggung internasional.',
+    'team.role1':'Mekanik','team.role2':'Programmer Website dan AI','team.role3':'Programmer Code Otak Robot dan Elektronika',
+    'team.desc1':'Desain mekanik, fabrikasi chassis, dan perakitan aktuator penyortir.',
+    'team.desc2':'Rekayasa dasbor, pipeline data real-time, dan pelatihan model computer vision.',
+    'team.desc3':'Firmware embedded, protokol UART micro:bit, dan pengkabelan elektronika.',
+    'team.footer':'Dirancang untuk Kompetisi Robotika & AI Internasional.',
+    'arch.title':'Arsitektur Sistem','arch.sub':'Bagaimana data mengalir dari kamera hingga ke cloud.',
+    'set.title':'Pengaturan','set.language':'Bahasa','set.theme':'Mode Gelap','set.themeSub':'Aktifkan tampilan gelap futuristik',
+    'set.bar':'Posisi Navigasi','set.barLeft':'Kiri','set.barRight':'Kanan','set.barTop':'Atas','set.barBottom':'Atas',
+    'set.barHint':'HP selalu memakai menu drawer (tombol ☰). Posisi Kiri/Kanan/Atas hanya berlaku di laptop/desktop ≥1024px.',
+    'set.viewTeam':'Lihat Tim',
+    'fb.title':'Firebase Realtime DB','fb.key':'API Key','fb.url':'URL Database','fb.path':'Path Database','fb.sync':'SINKRON FIREBASE',
+    'exp.title':'Ekspor Laporan','exp.choose':'Pilih format','exp.note':'Laporan mencakup header VERNOVA, ringkasan sortir, timestamp, dan baris berwarna.'
+  },
+  en: {
+    'brand.tag':'Smart Sorting System','brand.teamLine':'Robotics · AI · Web Engineering',
+    'nav.dash':'Factory Dashboard','nav.dashShort':'Dashboard','nav.team':'VERNOVA Team','nav.teamShort':'Team',
+    'nav.arch':'Architecture','nav.archShort':'System','nav.settings':'Settings','nav.settingsShort':'Settings',
+    'btn.connect':'CONNECT','btn.export':'Export Report',
+    'dash.title':'AI Smart Factory Dashboard','dash.sub':'Real-time object sorting analytics.',
+    'dash.mode':'Sorting Mode','dash.modeServo':'Servo Mode','dash.modeArm':'Arm Mode',
+    'metric.total':'Total Processed','metric.yellow':'Yellow','metric.blue':'Blue','metric.red':'Red','metric.error':'Error',
+    'vision.title':'AI Vision','vision.ph':'Teachable Machine Model URL...','vision.start':'START AI',
+    'vision.loading':'LOADING...','vision.online':'AI ONLINE','vision.pause':'PAUSE','vision.resume':'RESUME',
+    'vision.standby':'Camera Standby','vision.pausedOverlay':'System Temporarily Paused',
+    'chart.title':'Sorting Distribution','qc.title':'Manual QC & Control','qc.missort':'Log Miss-sort',
+    'qc.error':'Error','qc.force':'Force Timeout','qc.system':'System','qc.reset':'Reset Database',
+    'log.title':'Live History','log.empty':'No activity yet.',
+    'team.eyebrow':'The Team Behind The Machine',
+    'team.desc':'A synergy of mechanics, artificial intelligence and electronics — building an autonomous smart sorting system for the international stage.',
+    'team.role1':'Mechanic','team.role2':'Website & AI Programmer','team.role3':'Robot Brain Code & Electronics Programmer',
+    'team.desc1':'Mechanical design, chassis fabrication and sorting actuator assembly.',
+    'team.desc2':'Dashboard engineering, real-time data pipeline and computer-vision model training.',
+    'team.desc3':'Embedded firmware, micro:bit UART protocol and electronic wiring.',
+    'team.footer':'Engineered for the International Robotics & AI Competition.',
+    'arch.title':'System Architecture','arch.sub':'How data travels from the camera to the cloud.',
+    'set.title':'Settings','set.language':'Language','set.theme':'Dark Mode','set.themeSub':'Enable the futuristic dark interface',
+    'set.bar':'Navigation Position','set.barLeft':'Left','set.barRight':'Right','set.barTop':'Top','set.barBottom':'Top',
+    'set.barHint':'Phones always use the drawer menu (☰ button). Left/Right/Top positions apply to laptop/desktop ≥1024px only.',
+    'set.viewTeam':'View Team',
+    'fb.title':'Firebase Realtime DB','fb.key':'API Key','fb.url':'Database URL','fb.path':'Database Path','fb.sync':'SYNC FIREBASE',
+    'exp.title':'Export Report','exp.choose':'Choose a format','exp.note':'Reports include the VERNOVA header, sorting summary, timestamps and colour-coded rows.'
+  }
+};
+const t = (k) => (I18N[state.lang] && I18N[state.lang][k]) || k;
+
+/* ------------------------------------------------------------------ */
+/*  NAVIGATION                                                         */
+/* ------------------------------------------------------------------ */
+window.showPage = (id) => {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn, .tab-btn, .mnav-btn').forEach(el => el.classList.remove('active'));
+  const page = $('page-' + id);
+  if (page) {
+    void page.offsetWidth;
+    page.classList.add('active');
+  }
+  ['nav-' + id, 'bnav-' + id, 'mnav-' + id].forEach(x => { const el = $(x); if (el) el.classList.add('active'); });
+  const sc = document.querySelector('.scroll-area');
+  if (sc) sc.scrollTo({ top: 0, behavior: 'smooth' });
+  window.toggleDrawer(false);
+};
+
+/* Mobile drawer menu — HP pakai menu, desktop pakai bar */
+window.toggleDrawer = (open) => {
+  const drawer = $('mobile-drawer');
+  const backdrop = $('drawer-backdrop');
+  const btn = $('btn-menu');
+  if (!drawer || !backdrop) return;
+  const willOpen = typeof open === 'boolean' ? open : !drawer.classList.contains('open');
+  drawer.classList.toggle('open', willOpen);
+  backdrop.classList.toggle('show', willOpen);
+  drawer.setAttribute('aria-hidden', willOpen ? 'false' : 'true');
+  if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  document.body.style.overflow = '';
+};
+
+/* ------------------------------------------------------------------ */
+/*  TOAST + LOG                                                        */
+/* ------------------------------------------------------------------ */
+function showToast(msg) {
+  const el = $('toast');
+  $('toast-msg').innerText = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3200);
+}
+window.showToast = showToast;
+
+function logActivity(icon, colorStyle, title, desc) {
+  const panel = $('log-panel');
+  const empty = panel.querySelector('[data-i18n="log.empty"]');
+  if (empty) empty.remove();
+  const html = `
+    <div class="log-item">
+      <div class="log-ico" style="${colorStyle}"><i class="${icon}"></i></div>
+      <div class="overflow-hidden">
+        <p class="text-[10px] font-bold t-main truncate">${title}</p>
+        <p class="text-[9px] t-muted truncate">${desc}</p>
+      </div>
+    </div>`;
+  panel.insertAdjacentHTML('afterbegin', html);
+  while (panel.children.length > 18) panel.lastElementChild.remove();
+}
+
+/* ------------------------------------------------------------------ */
+/*  CLOCK                                                              */
+/* ------------------------------------------------------------------ */
+setInterval(() => {
+  const time = new Date().toLocaleTimeString('id-ID');
+  const a = $('live-clock'); if (a) a.innerText = time;
+  const b = $('live-clock-m'); if (b) b.innerText = time;
+  const c = $('live-clock-drawer'); if (c) c.innerText = time;
+}, 1000);
+
+/* ------------------------------------------------------------------ */
+/*  PILL HELPER                                                        */
+/* ------------------------------------------------------------------ */
+function setPill(el, variant, text) {
+  el.className = 'pill' + (variant === 'on' ? ' on' : variant === 'blue' ? ' blue' : variant === 'warn' ? ' warn' : '');
+  el.innerText = text;
+}
+
+/* ================================================================== */
+/*  BLUETOOTH — MICRO:BIT                                              */
+/* ================================================================== */
+$('btn-conn-bt').onclick = async () => {
+  try {
+    if (!navigator.bluetooth) throw new Error("Bluetooth tidak didukung browser ini.");
+
+    state.device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "BBC micro:bit" }],
+      optionalServices: [UART_SERVICE_UUID]
+    });
+
+    state.device.addEventListener("gattserverdisconnected", () => {
+      state.bleConnected = false; updateBLEUI();
+      logActivity("fas fa-xmark", "background:rgba(239,68,68,.15);color:#ef4444", "BT Disconnected", "Micro:bit terputus.");
+    });
+
+    const server = await state.device.gatt.connect();
+    const service = await server.getPrimaryService(UART_SERVICE_UUID);
+
+    state.txChar = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID);
+    state.rxChar = await service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID);
+
+    await state.txChar.startNotifications();
+    state.txChar.addEventListener("characteristicvaluechanged", handleBTEReceive);
+
+    state.bleConnected = true; updateBLEUI();
+    showToast("Micro:bit Connected!");
+    logActivity("fab fa-bluetooth-b", "background:rgba(59,130,246,.15);color:#3b82f6", "Bluetooth Active", "Terhubung ke Micro:bit");
+  } catch (e) { showToast("Gagal konek: " + e.message); }
+};
+
+$('btn-dis-bt').onclick = () => { if (state.device) state.device.gatt.disconnect(); };
+
+function updateBLEUI() {
+  $('btn-conn-bt').disabled = state.bleConnected;
+  $('btn-dis-bt').disabled = !state.bleConnected;
+  setPill($('status-bt'), state.bleConnected ? 'blue' : 'off', state.bleConnected ? "BT: ONLINE" : "BT: OFFLINE");
+}
+
+async function sendToMicrobit(payloadStr) {
+  if (!state.rxChar) return;
+  try {
+    await state.rxChar.writeValue(new TextEncoder().encode(payloadStr + "\n"));
+    logActivity("fas fa-paper-plane", "background:rgba(148,163,184,.18);color:var(--muted)", "Kirim ke Micro:bit", `Data: ${payloadStr}`);
+  } catch (e) { console.error(e); }
+}
+
+window.changeSortingMode = (newMode) => {
+  const modeCmd = newMode.toLowerCase();
+  sendToMicrobit(modeCmd);
+  showToast(`Mode diubah ke: ${newMode}`);
+  logActivity("fas fa-right-left", "background:rgba(168,85,247,.15);color:#a855f7", "Mode Change Sent", `Mode: ${newMode}`);
+};
+
+function handleBTEReceive(event) {
+  let arr = [];
+  for (let i = 0; i < event.target.value.byteLength; i++) arr.push(event.target.value.getUint8(i));
+  state.bleBuffer += String.fromCharCode.apply(null, arr);
+
+  if (state.bleBuffer.includes('\n')) {
+    let msgs = state.bleBuffer.split('\n');
+    state.bleBuffer = msgs.pop();
+
+    msgs.forEach(msg => {
+      let cleanMsg = msg.trim().toLowerCase();
+      if (cleanMsg && state.pendingDetection && cleanMsg === state.pendingDetection) {
+        triggerSortAction(state.pendingDetection);
       }
+    });
+  }
+}
 
-      btnGuest.addEventListener('click', function () {
-        setAdmin(false);
-        window.location.href = 'tamu.html';
+/* ================================================================== */
+/*  TEACHABLE MACHINE AI                                               */
+/* ================================================================== */
+let model, webcam, labelContainer, maxPredictions;
+
+window.initTM = async () => {
+  let tmInputUrl = $('tm-url-input').value.trim();
+  if (!tmInputUrl) return showToast("Masukkan URL Model TM!");
+  if (!tmInputUrl.endsWith('/')) tmInputUrl += '/';
+  const btn = $('btn-start-tm'); btn.disabled = true; btn.innerText = t('vision.loading');
+
+  try {
+    model = await tmImage.load(tmInputUrl + "model.json", tmInputUrl + "metadata.json");
+    maxPredictions = model.getTotalClasses();
+    webcam = new tmImage.Webcam(220, 220, true);
+    await webcam.setup(); await webcam.play();
+    window.requestAnimationFrame(tmLoop);
+
+    const web = $('webcam-container');
+    web.innerHTML = '';
+    web.appendChild(webcam.canvas);
+    const overlay = document.createElement('div');
+    overlay.id = 'pause-overlay';
+    overlay.innerHTML = `<i class="fas fa-pause-circle text-white text-3xl"></i>
+                         <span class="text-white font-bold text-[11px]">${t('vision.pausedOverlay')}</span>`;
+    web.appendChild(overlay);
+
+    labelContainer = $('label-container'); labelContainer.innerHTML = '';
+    for (let i = 0; i < maxPredictions; i++) {
+      const div = document.createElement("div");
+      div.className = "flex justify-between text-[11px] px-3 py-2 rounded-xl font-bold t-main border";
+      div.style.background = 'var(--surface-soft)';
+      div.style.borderColor = 'var(--border)';
+      labelContainer.appendChild(div);
+    }
+
+    state.aiReady = true;
+    btn.innerText = t('vision.online');
+    btn.style.background = '#16a34a';
+    setPill($('status-tm'), 'on', "AI: ONLINE");
+
+    const btnPause = $('btn-pause-ai');
+    btnPause.disabled = false;
+    btnPause.classList.remove('hidden');
+    btnPause.innerHTML = '<i class="fas fa-pause"></i> ' + t('vision.pause');
+
+    showToast("AI Ready!");
+  } catch (e) {
+    btn.disabled = false; btn.innerText = t('vision.start');
+    showToast("Error memuat model!");
+  }
+};
+
+window.togglePause = () => {
+  if (!state.aiReady) return;
+  state.isPaused = !state.isPaused;
+  const btnPause = $('btn-pause-ai');
+  const overlay = $('pause-overlay');
+
+  if (state.isPaused) {
+    btnPause.innerHTML = '<i class="fas fa-play"></i> ' + t('vision.resume');
+    btnPause.classList.add('is-resume');
+    if (overlay) overlay.classList.add('show');
+    setPill($('status-tm'), 'warn', "AI: PAUSED");
+    logActivity("fas fa-pause", "background:rgba(234,179,8,.18);color:#ca8a04", "AI Paused", "Deteksi AI dihentikan sementara");
+  } else {
+    btnPause.innerHTML = '<i class="fas fa-pause"></i> ' + t('vision.pause');
+    btnPause.classList.remove('is-resume');
+    if (overlay) overlay.classList.remove('show');
+    setPill($('status-tm'), 'on', "AI: ONLINE");
+    logActivity("fas fa-play", "background:rgba(34,197,94,.18);color:#16a34a", "AI Resumed", "Deteksi AI dilanjutkan");
+  }
+};
+
+async function tmLoop() {
+  if (webcam) webcam.update();
+  if (!state.isPaused) { await tmPredict(); }
+  window.requestAnimationFrame(tmLoop);
+}
+
+async function tmPredict() {
+  const pred = await model.predict(webcam.canvas);
+  for (let i = 0; i < maxPredictions; i++) {
+    const name = pred[i].className;
+    const prob = pred[i].probability.toFixed(2);
+    if (labelContainer && labelContainer.childNodes[i]) {
+      labelContainer.childNodes[i].innerHTML =
+        `<span>${name}</span><span style="color:var(--brand)">${(prob * 100).toFixed(0)}%</span>`;
+    }
+
+    if (prob > 0.85 && !state.isCoolingDown && !state.pendingDetection) {
+      const cLower = name.toLowerCase();
+      let colorCode = null;
+
+      if (cLower.includes('kuning') || cLower.includes('yellow')) colorCode = 'kuning';
+      else if (cLower.includes('biru') || cLower.includes('blue')) colorCode = 'biru';
+      else if (cLower.includes('merah') || cLower.includes('red')) colorCode = 'merah';
+
+      if (colorCode) {
+        state.isCoolingDown = true;
+        state.pendingDetection = colorCode;
+        sendToMicrobit(colorCode);
+
+        state.timeoutTimer = setTimeout(() => { executeTimeout(colorCode); }, 12000);
+      }
+    }
+  }
+}
+
+/* ================================================================== */
+/*  SORTING LOGIC + TIMEOUT                                            */
+/* ================================================================== */
+window.executeTimeout = (expectedColor) => {
+  if (state.pendingDetection === expectedColor || expectedColor === 'force') {
+    const failedColor = state.pendingDetection || 'Unknown';
+    state.pendingDetection = null;
+    state.isCoolingDown = false;
+
+    if (state.timeoutTimer) clearTimeout(state.timeoutTimer);
+
+    state.sortingData.gagal++;
+    updateUIStats(); updateChart();
+
+    logActivity("fas fa-clock", "background:rgba(239,68,68,.15);color:#ef4444", "Timeout Handshake",
+      expectedColor === 'force' ? "Force Timeout dieksekusi" : "Micro:bit tidak merespon");
+
+    if (state.db) {
+      update(ref(state.db, `${state.currentPath}/gagal`), {
+        [state.sortingData.gagal - 1]: { timestamp: Date.now(), value: 1 }
+      }).catch(e => console.error("Firebase Error:", e));
+    }
+
+    const currentMode = $('mode-selector').value;
+    const timeStr = new Date().toLocaleTimeString('id-ID');
+    const properColorName = failedColor.charAt(0).toUpperCase() + failedColor.slice(1);
+
+    state.excelLogs.push({
+      timestamp: timeStr,
+      warna: properColorName,
+      mode: currentMode,
+      status: expectedColor === 'force' ? "Force Timeout" : "Timeout/Error",
+      nilai: 0
+    });
+  }
+};
+
+window.forceTimeout = () => {
+  if (!state.pendingDetection) {
+    return showToast("Tidak ada objek yang sedang dalam proses sortasi.");
+  }
+  executeTimeout('force');
+  showToast("Sukses: Force Timeout Dieksekusi!");
+};
+
+async function triggerSortAction(category) {
+  if (state.timeoutTimer) clearTimeout(state.timeoutTimer);
+
+  state.pendingDetection = null;
+  setTimeout(() => { state.isCoolingDown = false; }, 1000);
+
+  state.sortingData[category]++;
+  state.sortingData.total++;
+
+  const currentMode = $('mode-selector').value;
+  const timeStr = new Date().toLocaleTimeString('id-ID');
+  const properColorName = category.charAt(0).toUpperCase() + category.slice(1);
+
+  state.excelLogs.push({
+    timestamp: timeStr,
+    warna: properColorName,
+    mode: currentMode,
+    status: "Berhasil",
+    nilai: 1
+  });
+
+  updateUIStats(); updateChart();
+
+  logActivity(
+    'fas fa-check',
+    category === 'kuning' ? 'background:rgba(234,179,8,.18);color:#ca8a04'
+      : (category === 'biru' ? 'background:rgba(59,130,246,.18);color:#3b82f6'
+        : 'background:rgba(239,68,68,.18);color:#ef4444'),
+    `${properColorName} Tersortir (${currentMode})`,
+    `Handshake berhasil @ ${timeStr}`
+  );
+
+  if (state.db) {
+    try {
+      await update(ref(state.db, `${state.currentPath}/${category}`), {
+        [state.sortingData[category] - 1]: { timestamp: Date.now(), mode: currentMode, value: 1 }
       });
+    } catch (e) { }
+  }
+}
 
-      btnAdmin.addEventListener('click', function () {
-        var open = lock.hasAttribute('hidden');
-        if (open) {
-          lock.removeAttribute('hidden');
-          btnAdmin.setAttribute('aria-expanded', 'true');
-          btnAdmin.classList.add('active');
-          setTimeout(function () { pass.focus(); }, 60);
-        } else {
-          lock.setAttribute('hidden', '');
-          btnAdmin.setAttribute('aria-expanded', 'false');
-          btnAdmin.classList.remove('active');
+window.logMissort = async () => {
+  state.sortingData.gagal++; updateUIStats(); updateChart();
+  logActivity('fas fa-triangle-exclamation', 'background:rgba(249,115,22,.18);color:#f97316',
+    'Manual QC: Error Dicatat', new Date().toLocaleTimeString('id-ID'));
+  if (state.db) {
+    await update(ref(state.db, `${state.currentPath}/gagal`), {
+      [state.sortingData.gagal - 1]: { timestamp: Date.now(), value: 1 }
+    });
+  }
+};
+
+window.resetData = async () => {
+  if (confirm("Reset seluruh data visual, memori history, dan cloud?")) {
+    state.sortingData = { kuning: 0, biru: 0, merah: 0, gagal: 0, total: 0 };
+    state.excelLogs = [];
+
+    // reset skala Y biar kembali ke 0–5
+    state.chartYMax = 5;
+    if (state.chart) state.chart.options.scales.y.max = 5;
+
+    updateUIStats(); updateChart();
+    if (state.db) await set(ref(state.db, state.currentPath), { kuning: null, biru: null, merah: null, gagal: null });
+    showToast("Sistem direset!");
+    $('log-panel').innerHTML = `<p class="text-[11px] t-muted italic">${t('log.empty')}</p>`;
+  }
+};
+
+/* ================================================================== */
+/*  UI STATS + CHART                                                   */
+/* ================================================================== */
+function popMetric(id) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
+function updateUIStats() {
+  $('stat-total').innerText = state.sortingData.total;
+  $('stat-kuning').innerText = state.sortingData.kuning;
+  $('stat-biru').innerText = state.sortingData.biru;
+  $('stat-merah').innerText = state.sortingData.merah;
+  $('stat-gagal').innerText = state.sortingData.gagal;
+  const se = $('stat-error'); if (se) se.innerText = state.sortingData.gagal;
+  ['stat-total', 'stat-kuning', 'stat-biru', 'stat-merah', 'stat-error'].forEach(popMetric);
+}
+
+function chartLabels() {
+  return state.lang === 'id' ? ['Kuning', 'Biru', 'Merah', 'Error'] : ['Yellow', 'Blue', 'Red', 'Error'];
+}
+
+/* Skala Y "cantik" — hanya nilai bulat enak dilihat */
+function computeYMax(values) {
+  const m = Math.max(...values, 1);
+  if (m <= 5)   return 5;
+  if (m <= 10)  return 10;
+  if (m <= 20)  return 20;
+  if (m <= 50)  return 50;
+  if (m <= 100) return 100;
+  if (m <= 200) return 200;
+  if (m <= 500) return 500;
+  return Math.ceil(m / 500) * 500;
+}
+
+function initChart() {
+  const ctx = $('sortingChart').getContext('2d');
+  state.chartYMax = 5;                 // high-water mark
+  state.chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: chartLabels(),
+      datasets: [{
+        data: [0, 0, 0, 0],
+        backgroundColor: ['#d97706', '#1d4ed8', '#b91c1c', '#94a3b8'],
+        hoverBackgroundColor: ['#b45309', '#1e40af', '#991b1b', '#64748b'],
+        borderRadius: 10,
+        borderSkipped: false,
+        barThickness: '54%',
+        maxBarThickness: 64,
+        minBarLength: 2                 // bar 0 sekalipun tetap ada "jejak"
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 750, easing: 'easeOutQuart' },
+      animations: {
+        y:      { duration: 750, easing: 'easeOutQuart' },
+        height: { duration: 750, easing: 'easeOutQuart' },
+        colors: { duration: 400, easing: 'easeOutQuad' }
+      },
+      transitions: { active: { animation: { duration: 250 } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(2,6,23,.92)',
+          padding: 12, cornerRadius: 12,
+          titleFont: { size: 12, weight: 'bold' },
+          bodyFont:  { size: 12 },
+          displayColors: false
         }
-      });
-
-      function tryLogin() {
-        if ((pass.value || '').trim() === ADMIN_PASS) {
-          err.setAttribute('hidden', '');
-          setAdmin(true);
-          go.textContent = 'Berhasil…';
-          setTimeout(function () { window.location.href = 'admin.html'; }, 350);
-        } else {
-          err.removeAttribute('hidden');
-          lock.classList.remove('shake');
-          void lock.offsetWidth;
-          lock.classList.add('shake');
-          pass.select();
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: '#94a3b8', font: { weight: '700', size: 11 } }
+        },
+        y: {
+          beginAtZero: true,
+          max: state.chartYMax,          // ← kunci: pakai max eksplisit
+          grid: { color: 'rgba(148,163,184,.16)' },
+          ticks: {
+            color: '#94a3b8',
+            precision: 0,
+            font: { size: 11 },
+            callback: (v) => Number.isInteger(v) ? v : null
+          }
         }
       }
+    }
+  });
+}
 
-      go.addEventListener('click', tryLogin);
-      pass.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') tryLogin();
-      });
-      pass.addEventListener('input', function () {
-        err.setAttribute('hidden', '');
-      });
-    })();
-  </script>
+function updateChart() {
+  if (!state.chart) return;
+
+  const newData = [
+    state.sortingData.kuning,
+    state.sortingData.biru,
+    state.sortingData.merah,
+    state.sortingData.gagal
+  ];
+
+  // 1) Y-axis hanya NAIK (high-water mark) — bar jadi kelihatan tumbuh
+  const needed = computeYMax(newData);
+  if (needed > state.chartYMax) {
+    state.chartYMax = needed;
+    state.chart.options.scales.y.max = needed;
+  }
+
+  // 2) Mutasi array in-place → Chart.js animate dari nilai lama ke nilai baru
+  const ds = state.chart.data.datasets[0].data;
+  ds[0] = newData[0];
+  ds[1] = newData[1];
+  ds[2] = newData[2];
+  ds[3] = newData[3];
+
+  state.chart.data.labels = chartLabels();
+  state.chart.update();
+}
+
+/* ================================================================== */
+/*  FIREBASE                                                           */
+/* ================================================================== */
+$('btn-open-fb').onclick = () => window.openModal('fb-modal');
+
+$('btn-conn-fb').onclick = async () => {
+  const apiKey = $('fb-key').value.trim(), dbUrl = $('fb-url').value.trim(), path = $('fb-path').value.trim();
+  if (!apiKey || !dbUrl || !path) return showToast("Lengkapi kolom Firebase!");
+  try {
+    const apps = getApps(); if (apps.length > 0) await deleteApp(apps[0]);
+    if (state.unsubscribe) state.unsubscribe();
+
+    state.db = getDatabase(initializeApp({
+      apiKey, databaseURL: dbUrl,
+      projectId: dbUrl.split('//')[1]?.split('.')[0]
+    }));
+    state.currentPath = path;
+
+    state.unsubscribe = onValue(ref(state.db, path), (snap) => {
+      const data = snap.val() || {};
+      const count = (obj) => obj ? (Array.isArray(obj) ? obj.filter(x => x !== null).length : Object.keys(obj).length) : 0;
+      state.sortingData = {
+        kuning: count(data.kuning), biru: count(data.biru), merah: count(data.merah),
+        gagal: count(data.gagal),
+        total: count(data.kuning) + count(data.biru) + count(data.merah)
+      };
+      updateUIStats(); updateChart();
+      setPill($('status-fb'), 'on', "FB: SYNCED");
+    });
+    showToast("Firebase Connected!");
+    window.closeModal('fb-modal');
+  } catch (e) { showToast("FB Error: " + e.message); }
+};
+
+/* ================================================================== */
+/*  MODAL SYSTEM                                                       */
+/* ================================================================== */
+window.openModal = (id) => {
+  const m = $(id); if (!m) return;
+  if (id === 'export-modal') refreshExportSummary();
+  m.classList.add('open');
+};
+window.closeModal = (id) => { const m = $(id); if (m) m.classList.remove('open'); };
+
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal') || e.target.classList.contains('modal-backdrop')) {
+      m.classList.remove('open');
+    }
+  });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+    window.toggleDrawer(false);
+  }
+});
+
+/* ================================================================== */
+/*  SETTINGS — LANGUAGE / THEME / BAR POSITION                         */
+/* ================================================================== */
+window.setLanguage = (lang) => {
+  state.lang = lang;
+  try { localStorage.setItem('vernova_lang', lang); } catch (e) { }
+  applyLanguage();
+  syncSettingsUI();
+  showToast(lang === 'id' ? 'Bahasa: Indonesia' : 'Language: English');
+};
+
+function applyLanguage() {
+  document.documentElement.lang = state.lang;
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    const val = I18N[state.lang][key];
+    if (val !== undefined) el.innerHTML = val;
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.dataset.i18nPh;
+    const val = I18N[state.lang][key];
+    if (val !== undefined) el.placeholder = val;
+  });
+
+  const startBtn = $('btn-start-tm');
+  if (startBtn && !state.aiReady) startBtn.innerText = t('vision.start');
+  else if (startBtn && state.aiReady) startBtn.innerText = t('vision.online');
+
+  const pauseBtn = $('btn-pause-ai');
+  if (pauseBtn && !pauseBtn.classList.contains('hidden')) {
+    pauseBtn.innerHTML = (state.isPaused ? '<i class="fas fa-play"></i> ' + t('vision.resume')
+      : '<i class="fas fa-pause"></i> ' + t('vision.pause'));
+  }
+  const ov = $('pause-overlay');
+  if (ov) {
+    const span = ov.querySelector('span');
+    if (span) span.innerText = t('vision.pausedOverlay');
+  }
+
+  if (state.chart) {
+    state.chart.data.labels = chartLabels();
+    state.chart.update();
+  }
+}
+
+window.toggleTheme = () => {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  applyTheme();
+  syncSettingsUI();
+};
+
+function applyTheme() {
+  document.documentElement.classList.toggle('dark', state.theme === 'dark');
+  try { localStorage.setItem('vernova_theme', state.theme); } catch (e) { }
+}
+
+window.setBarPosition = (pos) => {
+  if (pos === 'bottom') pos = 'top';
+  if (!['left', 'right', 'top'].includes(pos)) return;
+  state.barPos = pos;
+  applyBarPosition();
+  syncSettingsUI();
+  try { localStorage.setItem('vernova_bar', pos); } catch (e) { }
+
+  const label = pos === 'left' ? (state.lang === 'id' ? 'Kiri' : 'Left') : pos === 'right' ? (state.lang === 'id' ? 'Kanan' : 'Right') : (state.lang === 'id' ? 'Atas' : 'Top');
+  showToast(state.lang === 'id' ? `Navigasi: ${label}` : `Navigation: ${label}`);
+};
+
+function applyBarPosition() {
+  const shell = $('app-shell');
+  if (!shell) return;
+  if (state.barPos === 'bottom') state.barPos = 'top';
+  const firstRun = !shell.classList.contains('pos-left') && !shell.classList.contains('pos-right') && !shell.classList.contains('pos-top') && !shell.classList.contains('pos-bottom');
+  shell.classList.remove('pos-left', 'pos-right', 'pos-top', 'pos-bottom');
+  // paksa reflow supaya animasi entrance selalu ke-restart saat pindah bar
+  void shell.offsetWidth;
+  shell.classList.add('pos-' + state.barPos);
+  if (!firstRun) {
+    shell.classList.remove('is-switching');
+    void shell.offsetWidth;
+    shell.classList.add('is-switching');
+    clearTimeout(shell._swT);
+    shell._swT = setTimeout(() => shell.classList.remove('is-switching'), 380);
+  }
+}
+
+function syncSettingsUI() {
+  document.querySelectorAll('#lang-seg button').forEach(b => b.classList.toggle('active', b.dataset.lang === state.lang));
+  document.querySelectorAll('#bar-seg button').forEach(b => b.classList.toggle('active', b.dataset.pos === state.barPos));
+  const sw = $('theme-switch');
+  if (sw) sw.classList.toggle('on', state.theme === 'dark');
+}
+
+/* ================================================================== */
+/*  RICH EXPORT ENGINE                                                 */
+/* ================================================================== */
+function getSummary() {
+  const d = state.sortingData;
+  const attempts = d.total + d.gagal;
+  const rate = attempts > 0 ? ((d.total / attempts) * 100).toFixed(1) : '0.0';
+  return { total: d.total, kuning: d.kuning, biru: d.biru, merah: d.merah, gagal: d.gagal, rate };
+}
+
+function refreshExportSummary() {
+  const s = getSummary();
+  $('exp-total').innerText = s.total;
+  $('exp-kuning').innerText = s.kuning;
+  $('exp-biru').innerText = s.biru;
+  $('exp-merah').innerText = s.merah;
+  const eg = $('exp-gagal'); if (eg) eg.innerText = s.gagal;
+}
+
+window.openExportModal = () => { refreshExportSummary(); window.openModal('export-modal'); };
+
+const COLOR_MAP = {
+  'Kuning': { fill: 'FEF3C7', text: '92400E', rgb: [254, 243, 199] },
+  'Biru': { fill: 'DBEAFE', text: '1E40AF', rgb: [219, 234, 254] },
+  'Merah': { fill: 'FEE2E2', text: '991B1B', rgb: [254, 226, 226] },
+  'Unknown': { fill: 'F1F5F9', text: '475569', rgb: [241, 245, 249] }
+};
+const colorMeta = (name) => COLOR_MAP[name] || COLOR_MAP['Unknown'];
+
+function localColor(name) {
+  if (state.lang === 'en') {
+    return name === 'Kuning' ? 'Yellow' : name === 'Biru' ? 'Blue' : name === 'Merah' ? 'Red' : name;
+  }
+  return name;
+}
+
+function timestampTag() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+/* ---------- CSV ---------- */
+window.exportExcel = () => exportCSV();
+function exportCSV() {
+  if (state.excelLogs.length === 0 && (state.sortingData.total + state.sortingData.gagal) === 0) return showToast("Belum ada data untuk diexport!");
+  const s = getSummary();
+  const attempts = s.total + s.gagal;
+  let csv = "VERNOVA Sorting Report\n";
+  csv += `Generated,${new Date().toLocaleString(state.lang === 'id' ? 'id-ID' : 'en-GB')}\n`;
+  csv += `Total Processed,${s.total}\n`;
+  csv += `Yellow,${s.kuning}\n`;
+  csv += `Blue,${s.biru}\n`;
+  csv += `Red,${s.merah}\n`;
+  csv += `Error,${s.gagal}\n`;
+  csv += `Total Attempts,${attempts}\n`;
+  csv += `Success Rate,${s.rate}%\n\n`;
+  csv += "No,Timestamp,Color,Mode,Status,Value\n";
+  state.excelLogs.forEach((row, i) => {
+    csv += `${i + 1},${row.timestamp},${localColor(row.warna)},${row.mode},${row.status},${row.nilai}\n`;
+  });
+  downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `VERNOVA_Report_${timestampTag()}.csv`);
+  showToast("CSV berhasil diunduh!");
+}
+
+/* ---------- XLSX (styled) ---------- */
+function exportXLSX() {
+  if (typeof XLSX === 'undefined') return showToast("Library Excel belum termuat.");
+  const s = getSummary();
+  const rows = state.excelLogs;
+  const wb = XLSX.utils.book_new();
+  const aoa = [];
+
+  const attempts = s.total + s.gagal;
+  aoa.push(['VERNOVA — SMART SORTING FACTORY REPORT']);
+  aoa.push(['Generated', new Date().toLocaleString(state.lang === 'id' ? 'id-ID' : 'en-GB'), '', 'Total Processed', s.total]);
+  aoa.push(['Success Rate', s.rate + '%', '', 'Error', s.gagal]);
+  aoa.push([]);
+  aoa.push(['SORTING SUMMARY']);
+  aoa.push(['Yellow', s.kuning, 'Blue', s.biru, 'Red', s.merah]);
+  aoa.push(['Error', s.gagal, 'Total Attempts', attempts, 'Success Rate', s.rate + '%']);
+  aoa.push([]);
+  aoa.push(['No', 'Timestamp', 'Color', 'Mode', 'Status', 'Value']);
+  const HEADER_ROW = aoa.length - 1;
+  const ERROR_ROW = HEADER_ROW - 2;
+  rows.forEach((r, i) => aoa.push([i + 1, r.timestamp, localColor(r.warna), r.mode, r.status, r.nilai]));
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+    { s: { r: 4, c: 0 }, e: { r: 4, c: 5 } }
+  ];
+  ws['!cols'] = [{ wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 20 }, { wch: 9 }];
+  ws['!rows'] = [{ hpt: 30 }, {}, {}, {}, { hpt: 20 }, {}, {}, {}, { hpt: 22 }];
+
+  const thin = { style: 'thin', color: { rgb: 'CBD5E1' } };
+  const border = { top: thin, bottom: thin, left: thin, right: thin };
+
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      const cell = ws[addr];
+      if (!cell) continue;
+
+      let style = { font: { sz: 11, color: { rgb: '1E293B' } }, alignment: { vertical: 'center' } };
+
+      if (R === 0) {
+        style = {
+          font: { sz: 16, bold: true, color: { rgb: 'FFFFFF' } },
+          fill: { fgColor: { rgb: '1D4ED8' } },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+      } else if (R === 4) {
+        style = {
+          font: { sz: 12, bold: true, color: { rgb: '1D4ED8' } },
+          fill: { fgColor: { rgb: 'E0E7FF' } },
+          alignment: { horizontal: 'left', vertical: 'center' }
+        };
+      } else if (R === 5 || R === ERROR_ROW) {
+        const isErrorRow = (R === ERROR_ROW);
+        style = {
+          font: { sz: 11, bold: true, color: { rgb: isErrorRow && (C === 0 || C === 1) ? '991B1B' : '0F172A' } },
+          fill: { fgColor: { rgb: isErrorRow ? 'FEE2E2' : 'F1F5F9' } },
+          alignment: { horizontal: 'center' },
+          border
+        };
+      } else if (R === HEADER_ROW) {
+        style = {
+          font: { sz: 11, bold: true, color: { rgb: 'FFFFFF' } },
+          fill: { fgColor: { rgb: '0F172A' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border
+        };
+      } else if (R > HEADER_ROW) {
+        const rowData = rows[R - HEADER_ROW - 1];
+        const meta = colorMeta(rowData ? rowData.warna : 'Unknown');
+        style = {
+          font: { sz: 11, color: { rgb: meta.text } },
+          fill: { fgColor: { rgb: meta.fill } },
+          alignment: { horizontal: C === 0 || C === 5 ? 'center' : 'left', vertical: 'center' },
+          border
+        };
+      }
+      cell.s = style;
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Sorting Report');
+  XLSX.writeFile(wb, `VERNOVA_Report_${timestampTag()}.xlsx`);
+  showToast("Excel (.xlsx) berhasil diunduh!");
+}
+
+/* ---------- PDF ---------- */
+function exportPDF() {
+  if (!window.jspdf) return showToast("Library PDF belum termuat.");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const s = getSummary();
+
+  doc.setFillColor(29, 78, 216);
+  doc.rect(0, 0, W, 92, 'F');
+  doc.setFillColor(6, 182, 212);
+  doc.rect(0, 88, W, 4, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(24);
+  doc.text('VERNOVA', 40, 42);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+  doc.text('AI Smart Sorting Factory — Production Report', 40, 62);
+  doc.setFontSize(9);
+  doc.text('Generated: ' + new Date().toLocaleString(state.lang === 'id' ? 'id-ID' : 'en-GB'), 40, 78);
+
+  const attempts = s.total + s.gagal;
+  const errRate = attempts > 0 ? ((s.gagal / attempts) * 100).toFixed(1) + '%' : '0.0%';
+  doc.autoTable({
+    startY: 116,
+    head: [['Total Processed', 'Yellow', 'Blue', 'Red', 'Error', 'Success Rate']],
+    body: [[s.total, s.kuning, s.biru, s.merah, s.gagal, s.rate + '%']],
+    theme: 'grid',
+    headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 9, halign: 'center', fontStyle: 'bold' },
+    bodyStyles: { fontSize: 12, halign: 'center', fontStyle: 'bold', textColor: [30, 41, 59] },
+    margin: { left: 40, right: 40 }
+  });
+
+  doc.autoTable({
+    startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 160) + 10,
+    head: [['Error', 'Error Rate', 'Total Attempts']],
+    body: [[s.gagal + 'x error', errRate, attempts]],
+    theme: 'grid',
+    headStyles: { fillColor: [153, 27, 27], textColor: 255, fontSize: 9, halign: 'center', fontStyle: 'bold' },
+    bodyStyles: { fontSize: 11, halign: 'center', fontStyle: 'bold', textColor: [153, 27, 27], fillColor: [254, 226, 226] },
+    margin: { left: 40, right: 40 }
+  });
+
+  const body = state.excelLogs.map((r, i) => {
+    const meta = colorMeta(r.warna);
+    return {
+      content: [i + 1, r.timestamp, localColor(r.warna), r.mode, r.status, r.nilai],
+      styles: { fillColor: meta.rgb, textColor: hexToRgb(meta.text) }
+    };
+  });
+
+  doc.autoTable({
+    startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 160) + 18,
+    head: [['No', 'Timestamp', 'Color', 'Mode', 'Status', 'Value']],
+    body: body.length ? body : [[{ content: 'No data recorded', colSpan: 6, styles: { halign: 'center', textColor: [120, 130, 150] } }]],
+    theme: 'grid',
+    headStyles: { fillColor: [30, 58, 138], textColor: 255, fontSize: 9, halign: 'center' },
+    bodyStyles: { fontSize: 9, halign: 'center', textColor: [30, 41, 59] },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 40, right: 40 },
+    didDrawPage: () => {
+      const H = doc.internal.pageSize.getHeight();
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text('VERNOVA · AI Smart Sorting System', 40, H - 20);
+      doc.text('Page ' + doc.internal.getNumberOfPages(), W - 70, H - 20);
+    }
+  });
+
+  doc.save(`VERNOVA_Report_${timestampTag()}.pdf`);
+  showToast("PDF berhasil diunduh!");
+}
+
+function hexToRgb(hex) {
+  const n = parseInt(hex, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/* ---------- DOCX ---------- */
+async function exportDOCX() {
+  const D = window.docx;
+  if (!D) return showToast("Library DOCX belum termuat.");
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, ShadingType, BorderStyle } = D;
+  const s = getSummary();
+  const rows = state.excelLogs;
+
+  const para = (text, opts = {}) => new Paragraph({
+    alignment: opts.align || AlignmentType.LEFT,
+    spacing: { after: opts.after !== undefined ? opts.after : 120 },
+    children: [new TextRun({
+      text: String(text),
+      bold: !!opts.bold,
+      size: opts.size || 20,
+      color: opts.color || '1E293B',
+      italics: !!opts.italics
+    })]
+  });
+
+  const thinBorder = { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' };
+  const cellBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+
+  const headCell = (text) => new TableCell({
+    shading: { type: ShadingType.CLEAR, color: 'auto', fill: '1E3A8A' },
+    margins: { top: 90, bottom: 90, left: 110, right: 110 },
+    borders: cellBorders,
+    children: [new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text: String(text), bold: true, color: 'FFFFFF', size: 18 })]
+    })]
+  });
+
+  const dataCell = (text, fill, color = '1E293B', align = AlignmentType.CENTER) => new TableCell({
+    shading: fill ? { type: ShadingType.CLEAR, color: 'auto', fill } : undefined,
+    margins: { top: 70, bottom: 70, left: 110, right: 110 },
+    borders: cellBorders,
+    children: [new Paragraph({
+      alignment: align,
+      children: [new TextRun({ text: String(text), size: 18, color })]
+    })]
+  });
+
+  const attempts = s.total + s.gagal;
+  const errRate = attempts > 0 ? ((s.gagal / attempts) * 100).toFixed(1) + '%' : '0.0%';
+  const summaryRows = [
+    new TableRow({
+      children: [
+        headCell('Total Processed'), headCell('Yellow'), headCell('Blue'),
+        headCell('Red'), headCell('Error'), headCell('Success Rate')
+      ]
+    }),
+    new TableRow({
+      children: [
+        dataCell(s.total, 'E0E7FF', '1D4ED8'),
+        dataCell(s.kuning, 'FEF3C7', '92400E'),
+        dataCell(s.biru, 'DBEAFE', '1E40AF'),
+        dataCell(s.merah, 'FEE2E2', '991B1B'),
+        dataCell(s.gagal, 'FEE2E2', '991B1B'),
+        dataCell(s.rate + '%', 'DCFCE7', '166534')
+      ]
+    })
+  ];
+
+  const errorRows = [
+    new TableRow({
+      children: [headCell('Error'), headCell('Error Rate'), headCell('Total Attempts')]
+    }),
+    new TableRow({
+      children: [
+        dataCell(s.gagal + 'x error', 'FEE2E2', '991B1B'),
+        dataCell(errRate, 'FEE2E2', '991B1B'),
+        dataCell(attempts, 'F1F5F9', '475569')
+      ]
+    })
+  ];
+
+  const detailRows = [
+    new TableRow({
+      tableHeader: true,
+      children: ['No', 'Timestamp', 'Color', 'Mode', 'Status', 'Value'].map(headCell)
+    })
+  ];
+
+  if (rows.length === 0) {
+    detailRows.push(new TableRow({
+      children: [new TableCell({
+        columnSpan: 6,
+        margins: { top: 100, bottom: 100, left: 110, right: 110 },
+        children: [new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: 'No data recorded', italics: true, color: '94A3B8', size: 18 })]
+        })]
+      })]
+    }));
+  } else {
+    rows.forEach((r, i) => {
+      const meta = colorMeta(r.warna);
+      detailRows.push(new TableRow({
+        children: [
+          dataCell(i + 1, meta.fill, meta.text),
+          dataCell(r.timestamp, meta.fill, meta.text),
+          dataCell(localColor(r.warna), meta.fill, meta.text),
+          dataCell(r.mode, meta.fill, meta.text),
+          dataCell(r.status, meta.fill, meta.text),
+          dataCell(r.nilai, meta.fill, meta.text)
+        ]
+      }));
+    });
+  }
+
+  const doc = new Document({
+    creator: 'VERNOVA',
+    title: 'VERNOVA AI Smart Sorting Report',
+    sections: [{
+      properties: { page: { margin: { top: 900, bottom: 900, left: 900, right: 900 } } },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 60 },
+          children: [new TextRun({ text: 'VERNOVA', bold: true, size: 64, color: '1D4ED8', font: 'Arial' })]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 60 },
+          children: [new TextRun({ text: 'AI SMART SORTING FACTORY — PRODUCTION REPORT', bold: true, size: 20, color: '0F172A' })]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 320 },
+          border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: '06B6D4', space: 6 } },
+          children: [new TextRun({
+            text: 'Generated: ' + new Date().toLocaleString(state.lang === 'id' ? 'id-ID' : 'en-GB'),
+            size: 18, color: '64748B'
+          })]
+        }),
+
+        para('1. SORTING SUMMARY', { bold: true, size: 26, color: '1D4ED8', after: 160 }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: summaryRows
+        }),
+
+        para('', { after: 260 }),
+        para('2. ERROR SUMMARY', { bold: true, size: 26, color: '991B1B', after: 160 }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: errorRows
+        }),
+
+        para('', { after: 260 }),
+        para('3. DETAILED SORTING LOG', { bold: true, size: 26, color: '1D4ED8', after: 160 }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: detailRows
+        }),
+
+        para('', { after: 300 }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          border: { top: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1', space: 8 } },
+          children: [new TextRun({
+            text: 'VERNOVA — Hamzah Aufa Ibrahim · Muhammad Alif Al Hafidz · Naufal Ahmad Bilal',
+            size: 16, color: '94A3B8'
+          })]
+        })
+      ]
+    }]
+  });
+
+  try {
+    const blob = await Packer.toBlob(doc);
+    downloadBlob(blob, `VERNOVA_Report_${timestampTag()}.docx`);
+    showToast("Word (.docx) berhasil diunduh!");
+  } catch (e) {
+    console.error(e);
+    showToast("Gagal membuat DOCX.");
+  }
+}
+
+/* ---------- EXPORT ROUTER ---------- */
+window.doExport = async (type) => {
+  const hasCount = (state.sortingData.total + state.sortingData.gagal) > 0;
+  if (state.excelLogs.length === 0 && !hasCount) {
+    showToast(state.lang === 'id' ? "Belum ada data untuk diexport!" : "No data to export yet!");
+    return;
+  }
+  window.closeModal('export-modal');
+  await new Promise(r => setTimeout(r, 180));
+  try {
+    if (type === 'xlsx') exportXLSX();
+    else if (type === 'pdf') exportPDF();
+    else if (type === 'docx') await exportDOCX();
+    else exportCSV();
+  } catch (e) { console.error(e); showToast("Export error: " + e.message); }
+};
+
+/* ================================================================== */
+/*  BOOT                                                               */
+/* ================================================================== */
+(function boot() {
+  try {
+    const sl = localStorage.getItem('vernova_lang'); if (sl === 'id' || sl === 'en') state.lang = sl;
+    const st = localStorage.getItem('vernova_theme'); if (st === 'dark' || st === 'light') state.theme = st;
+    const sb = localStorage.getItem('vernova_bar');
+    if (sb === 'left' || sb === 'right' || sb === 'top') state.barPos = sb;
+    else if (sb === 'bottom') state.barPos = 'top';
+  } catch (e) { }
+
+  applyTheme();
+  applyBarPosition();
+  applyLanguage();
+  syncSettingsUI();
+  initChart();
+  updateUIStats();
+
+  setTimeout(() => showToast(state.lang === 'id' ? 'Sistem siap · VERNOVA' : 'System ready · VERNOVA'), 700);
+})();
+</script>
 </body>
 </html>

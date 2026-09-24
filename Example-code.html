@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Smart Sorting Dashboard - Time Series DB & QC</title>
+    
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Teachable Machine & TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+    <style>
+        :root { --theme: #2563eb; }
+        * { transition: background-color 0.3s, border-color 0.3s, color 0.3s; font-family: 'Inter', sans-serif; }
+        body { background: #F7F9FB; overflow: hidden; }
+        
+        .sidebar-btn.active { background: #f3f4f6; border-right: 4px solid var(--theme); color: var(--theme); }
+        .page { display: none; animation: fadeIn 0.4s ease; height: calc(100vh - 80px); overflow-y: auto; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Dark Mode */
+        body.dark { background: #0f172a; color: #f8fafc; }
+        .dark aside, .dark header, .dark .bg-white, .dark #right-panel { background: #1e293b !important; border-color: #334155 !important; }
+        .dark input, .dark select { background: #334155 !important; border-color: #475569 !important; color: #fff; }
+        .dark .sidebar-btn.active { background: #334155; }
+        .dark #dev-card { background: #0f172a !important; border: 1px solid #334155 !important; }
+
+        #webcam-container canvas { width: 100% !important; height: auto !important; border-radius: 1rem; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        #toast { position: fixed; bottom: 20px; right: 20px; transform: translateY(100px); transition: 0.5s; z-index: 1000; }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-white border-r flex flex-col p-6 z-50 shrink-0">
+        <div class="flex items-center gap-3 mb-10">
+            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                <i class="fas fa-robot text-xl"></i>
+            </div>
+            <span class="font-extrabold text-xl tracking-tight">Sort<span class="text-blue-600">.AI</span></span>
+        </div>
+        <nav class="flex-1 space-y-2">
+            <button onclick="window.showPage('dash')" id="nav-dash" class="sidebar-btn active w-full flex items-center gap-3 p-3 rounded-xl text-gray-500 font-medium text-sm">
+                <i class="fas fa-chart-line"></i> Factory Dashboard
+            </button>
+            <button onclick="window.showPage('help')" id="nav-help" class="sidebar-btn w-full flex items-center gap-3 p-3 rounded-xl text-gray-500 font-medium text-sm">
+                <i class="fas fa-question-circle"></i> Architecture
+            </button>
+        </nav>
+        <div id="dev-card" class="mt-auto bg-[#1e293b] p-5 rounded-2xl shadow-xl border border-gray-700">
+            <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Developer</p>
+            <p class="text-xs font-bold text-white mb-2">Kanz Rajabana</p>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        <!-- HEADER -->
+        <header class="h-20 bg-white border-b px-8 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-4 w-full justify-between">
+                <div class="flex gap-3">
+                    <div id="status-bt" class="px-3 py-1 rounded-full bg-gray-100 dark:bg-slate-800 text-[10px] font-bold text-gray-400 border dark:border-slate-700 italic">BT: OFFLINE</div>
+                    <div id="status-fb" class="px-3 py-1 rounded-full bg-gray-100 dark:bg-slate-800 text-[10px] font-bold text-gray-400 border dark:border-slate-700 italic">FB: OFFLINE</div>
+                    <div id="status-tm" class="px-3 py-1 rounded-full bg-gray-100 dark:bg-slate-800 text-[10px] font-bold text-gray-400 border dark:border-slate-700 italic">AI: STANDBY</div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="flex flex-col gap-1">
+                        <div class="flex gap-1">
+                            <input type="password" id="fb-key" placeholder="API Key" class="text-[10px] p-2 bg-gray-50 border rounded-lg w-28">
+                            <input type="text" id="fb-url" placeholder="DB URL" class="text-[10px] p-2 bg-gray-50 border rounded-lg w-28">
+                        </div>
+                        <input type="text" id="fb-path" placeholder="Path DB" value="smart_factory/sorting_line" class="text-[10px] p-2 bg-gray-50 border rounded-lg w-full">
+                    </div>
+                    <button id="btn-conn-fb" class="bg-black dark:bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold hover:scale-105 shadow-md">SYNC FB</button>
+                    
+                    <div class="h-8 w-px bg-gray-300 mx-1"></div>
+
+                    <button id="btn-conn-bt" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold hover:scale-105 shadow-md flex items-center gap-2">
+                        <i class="fab fa-bluetooth"></i> MICRO:BIT
+                    </button>
+                    <button id="btn-dis-bt" disabled class="text-red-500 px-2 disabled:opacity-30"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 flex overflow-hidden">
+            <div class="flex-1 overflow-y-auto p-8 relative">
+                
+                <!-- PAGE 1: DASHBOARD -->
+                <section id="page-dash" class="page active">
+                    <div class="flex justify-between items-end mb-6">
+                        <div>
+                            <h1 class="text-2xl font-black">AI Smart Factory Dashboard</h1>
+                            <p class="text-gray-400 text-sm">Real-time object sorting analytics.</p>
+                        </div>
+                        <div class="text-right">
+                            <p id="live-clock" class="text-xl font-bold font-mono">00:00:00</p>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">WIB TIME</p>
+                        </div>
+                    </div>
+
+                    <!-- MODE SELECTOR & EXPORT -->
+                    <div class="flex justify-between items-center mb-6 bg-white dark:bg-slate-800 p-4 rounded-2xl border dark:border-slate-700">
+                        <div class="flex items-center gap-4">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Sorting Mode:</label>
+                            <select id="mode-selector" onchange="window.changeSortingMode(this.value)" class="px-4 py-2 bg-gray-50 dark:bg-slate-700 border dark:border-slate-600 rounded-xl text-sm font-bold outline-none cursor-pointer">
+                                <option value="Servo">🤖 Servo Mode</option>
+                                <option value="Arm">🦾 Arm Mode</option>
+                            </select>
+                        </div>
+                        <button onclick="window.exportExcel()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition">
+                            <i class="fas fa-file-excel"></i> Export to Excel
+                        </button>
+                    </div>
+
+                    <!-- METRICS CARDS -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border dark:border-slate-700 shadow-sm">
+                            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Processed</p>
+                            <p id="stat-total" class="text-3xl font-black text-blue-600">0</p>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border dark:border-slate-700 shadow-sm">
+                            <p class="text-[10px] font-bold text-yellow-500 uppercase tracking-widest mb-1">🟨 Kuning</p>
+                            <p id="stat-kuning" class="text-3xl font-black dark:text-white">0</p>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border dark:border-slate-700 shadow-sm">
+                            <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">🟦 Biru</p>
+                            <p id="stat-biru" class="text-3xl font-black dark:text-white">0</p>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border dark:border-slate-700 shadow-sm">
+                            <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">🟥 Merah</p>
+                            <p id="stat-merah" class="text-3xl font-black dark:text-white">0</p>
+                        </div>
+                    </div>
+
+                    <!-- CONTENT GRID -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                        <!-- WEBCAM -->
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border dark:border-slate-700 shadow-sm flex flex-col items-center">
+                            <div class="w-full mb-4 space-y-3">
+                                <h3 class="font-extrabold text-sm flex items-center dark:text-white"><i class="fas fa-camera text-blue-600 mr-2"></i>AI Vision</h3>
+                                <input type="text" id="tm-url-input" placeholder="TM Model URL..." class="text-[11px] p-2.5 bg-gray-50 border rounded-xl w-full dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                                <button id="btn-start-tm" onclick="initTM()" class="w-full bg-blue-600 text-white px-3 py-2.5 rounded-xl text-xs font-bold">START AI VISION</button>
+                            </div>
+                            <div id="webcam-container" class="w-full bg-slate-100 dark:bg-slate-900 rounded-2xl overflow-hidden flex items-center justify-center min-h-[200px] mb-4">
+                                <span class="text-xs text-gray-400 text-center px-4">Kamera Standby</span>
+                            </div>
+                            <div id="label-container" class="w-full space-y-2"></div>
+                        </div>
+
+                        <!-- CHARTS -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border dark:border-slate-700 shadow-sm">
+                                <h3 class="font-extrabold text-sm mb-4 dark:text-white">Sorting Distribution</h3>
+                                <div class="h-[200px]"><canvas id="sortingChart"></canvas></div>
+                            </div>
+                            <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border dark:border-slate-700 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 class="font-extrabold text-sm mb-4 dark:text-white">Manual QC</h3>
+                                    <button onclick="window.logMissort()" class="w-full py-2.5 bg-orange-100 text-orange-600 rounded-xl font-bold text-xs">
+                                        <i class="fas fa-exclamation-triangle mr-2"></i> Log Miss-sort (<span id="stat-gagal">0</span> Error)
+                                    </button>
+                                </div>
+                                <div class="flex flex-col justify-end h-full">
+                                    <button onclick="window.resetData()" class="w-full py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-xs">
+                                        <i class="fas fa-undo mr-2"></i> Reset Database
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="page-help" class="page"><h2 class="text-xl font-bold">Architecture</h2></section>
+            </div>
+
+            <!-- LOGS -->
+            <div id="right-panel" class="w-80 border-l bg-white dark:bg-slate-800 p-6 hidden xl:flex flex-col gap-4">
+                <h3 class="font-bold text-sm italic dark:text-white">Live History</h3>
+                <div class="space-y-3 overflow-y-auto max-h-[70vh]" id="log-panel"></div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="bg-black text-white px-6 py-3 rounded-2xl text-xs font-bold shadow-2xl flex items-center gap-2"><i class="fas fa-info-circle text-blue-400"></i> <span id="toast-msg">Initialized!</span></div>
+
+    <script type="module">
+        import { initializeApp, getApps, deleteApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import { getDatabase, ref, onValue, update, set } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+        const UART_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const UART_TX_CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; 
+        const UART_RX_CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; 
+
+        const state = {
+            db: null, currentPath: "", unsubscribe: null,
+            device: null, txChar: null, rxChar: null, bleConnected: false, bleBuffer: "",
+            sortingData: { kuning: 0, biru: 0, merah: 0, gagal: 0, total: 0 },
+            excelLogs: [], 
+            chart: null,
+            isCoolingDown: false,
+            pendingDetection: null 
+        };
+
+        const $ = (id) => document.getElementById(id);
+
+        window.showPage = (id) => {
+            document.querySelectorAll('.page, .sidebar-btn').forEach(el => el.classList.remove('active'));
+            $('page-'+id).classList.add('active'); $('nav-'+id).classList.add('active');
+        };
+
+        function showToast(msg) {
+            const t = $('toast'); $('toast-msg').innerText = msg;
+            t.style.transform = "translateY(0)"; setTimeout(() => t.style.transform = "translateY(100px)", 3000);
+        }
+
+        function logActivity(icon, colorClass, title, desc) {
+            const panel = $('log-panel');
+            const html = `
+                <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl dark:bg-slate-700 border dark:border-slate-600 animate-[fadeIn_0.3s_ease]">
+                    <div class="w-8 h-8 rounded-full ${colorClass} flex items-center justify-center text-xs shrink-0"><i class="${icon}"></i></div>
+                    <div class="overflow-hidden">
+                        <p class="text-[10px] font-bold dark:text-white truncate">${title}</p>
+                        <p class="text-[9px] text-gray-400 truncate">${desc}</p>
+                    </div>
+                </div>`;
+            panel.insertAdjacentHTML('afterbegin', html);
+            if(panel.children.length > 15) panel.lastElementChild.remove();
+        }
+
+        setInterval(() => $('live-clock').innerText = new Date().toLocaleTimeString('id-ID'), 1000);
+
+        $('btn-conn-bt').onclick = async () => {
+            try {
+                if (!navigator.bluetooth) throw new Error("Bluetooth tidak didukung.");
+                
+                state.device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: "BBC micro:bit" }],
+                    optionalServices: [UART_SERVICE_UUID]
+                });
+                
+                state.device.addEventListener("gattserverdisconnected", () => {
+                    state.bleConnected = false; updateBLEUI();
+                    logActivity("fas fa-times", "bg-red-100 text-red-600", "BT Disconnected", "Micro:bit terputus.");
+                });
+
+                const server = await state.device.gatt.connect();
+                const service = await server.getPrimaryService(UART_SERVICE_UUID);
+                
+                state.txChar = await service.getCharacteristic(UART_TX_CHARACTERISTIC_UUID); 
+                state.rxChar = await service.getCharacteristic(UART_RX_CHARACTERISTIC_UUID); 
+                
+                await state.txChar.startNotifications();
+                state.txChar.addEventListener("characteristicvaluechanged", handleBTEReceive);
+                
+                state.bleConnected = true; updateBLEUI();
+                showToast("Micro:bit Connected!");
+                logActivity("fab fa-bluetooth", "bg-blue-100 text-blue-600", "Bluetooth Active", "Terhubung ke Micro:bit");
+            } catch (e) { showToast("Gagal konek: " + e.message); }
+        };
+
+        $('btn-dis-bt').onclick = () => { if(state.device) state.device.gatt.disconnect(); };
+
+        function updateBLEUI() {
+            $('btn-conn-bt').disabled = state.bleConnected;
+            $('btn-dis-bt').disabled = !state.bleConnected;
+            $('status-bt').innerText = state.bleConnected ? "BT: ONLINE" : "BT: OFFLINE";
+            $('status-bt').className = state.bleConnected ? "px-3 py-1 rounded-full bg-blue-500 text-[10px] font-bold text-white" : "px-3 py-1 rounded-full bg-gray-100 text-[10px] font-bold text-gray-400";
+        }
+
+        async function sendToMicrobit(payloadStr) {
+            if (!state.rxChar) return;
+            try {
+                await state.rxChar.writeValue(new TextEncoder().encode(payloadStr + "\n"));
+                logActivity("fas fa-paper-plane", "bg-gray-200 text-gray-700", "Kirim ke Micro:bit", `Data: ${payloadStr}`);
+            } catch(e) { console.error(e); }
+        }
+
+        window.changeSortingMode = (newMode) => {
+            const modeCmd = newMode.toLowerCase();
+            sendToMicrobit(modeCmd); 
+            showToast(`Mode diubah ke: ${newMode}`);
+            logActivity("fas fa-exchange-alt", "bg-purple-100 text-purple-600", "Mode Change Sent", `Mode: ${newMode}`);
+        };
+
+        function handleBTEReceive(event) {
+            let arr = [];
+            for (let i = 0; i < event.target.value.byteLength; i++) arr.push(event.target.value.getUint8(i));
+            state.bleBuffer += String.fromCharCode.apply(null, arr);
+            
+            if (state.bleBuffer.includes('\n')) {
+                let msgs = state.bleBuffer.split('\n');
+                state.bleBuffer = msgs.pop(); 
+                
+                msgs.forEach(msg => {
+                    let cleanMsg = msg.trim().toLowerCase();
+                    if (cleanMsg && state.pendingDetection && cleanMsg === state.pendingDetection) {
+                        triggerSortAction(state.pendingDetection); 
+                        state.pendingDetection = null;
+                        setTimeout(() => { state.isCoolingDown = false; }, 1000);
+                    }
+                });
+            }
+        }
+
+        let model, webcam, labelContainer, maxPredictions;
+        window.initTM = async () => {
+            let tmInputUrl = $('tm-url-input').value.trim();
+            if (!tmInputUrl) return showToast("Masukkan URL Model TM!");
+            if (!tmInputUrl.endsWith('/')) tmInputUrl += '/';
+            const btn = $('btn-start-tm'); btn.disabled = true; btn.innerText = "LOADING...";
+
+            try {
+                model = await tmImage.load(tmInputUrl + "model.json", tmInputUrl + "metadata.json");
+                maxPredictions = model.getTotalClasses();
+                webcam = new tmImage.Webcam(220, 220, true);
+                await webcam.setup(); await webcam.play();
+                window.requestAnimationFrame(tmLoop);
+
+                const web = $('webcam-container'); web.innerHTML = ''; web.appendChild(webcam.canvas);
+                labelContainer = $('label-container'); labelContainer.innerHTML = '';
+                for (let i=0; i<maxPredictions; i++) {
+                    const div = document.createElement("div");
+                    div.className = "flex justify-between text-xs p-2 bg-gray-50 dark:bg-slate-700 rounded-xl font-bold dark:text-white";
+                    labelContainer.appendChild(div);
+                }
+                btn.innerText = "AI ONLINE"; btn.className = "w-full bg-green-600 text-white px-3 py-2.5 rounded-xl text-xs font-bold";
+                $('status-tm').className = "px-3 py-1 rounded-full bg-green-500 text-[10px] font-bold text-white";
+                $('status-tm').innerText = "AI: ONLINE";
+                showToast("AI Ready!");
+            } catch(e) { btn.disabled = false; btn.innerText = "START AI"; showToast("Error memuat model!"); }
+        };
+
+        async function tmLoop() { webcam.update(); await tmPredict(); window.requestAnimationFrame(tmLoop); }
+
+        async function tmPredict() {
+            const pred = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const name = pred[i].className;
+                const prob = pred[i].probability.toFixed(2);
+                labelContainer.childNodes[i].innerHTML = `<span>${name}</span><span class="text-blue-500">${(prob*100).toFixed(0)}%</span>`;
+
+                if (prob > 0.85 && !state.isCoolingDown && !state.pendingDetection) {
+                    const cLower = name.toLowerCase();
+                    let colorCode = null;
+                    
+                    if (cLower.includes('kuning') || cLower.includes('yellow')) colorCode = 'kuning';
+                    else if (cLower.includes('biru') || cLower.includes('blue')) colorCode = 'biru';
+                    else if (cLower.includes('merah') || cLower.includes('red')) colorCode = 'merah';
+
+                    if (colorCode) {
+                        state.isCoolingDown = true;
+                        state.pendingDetection = colorCode;
+                        sendToMicrobit(colorCode); 
+                        
+                        // TIMEOUT LOGIC: Diperbarui untuk mencatat error otomatis
+                        setTimeout(() => {
+                            if (state.pendingDetection === colorCode) {
+                                state.pendingDetection = null;
+                                state.isCoolingDown = false;
+                                
+                                // 1. Tambah data gagal & update UI
+                                state.sortingData.gagal++;
+                                updateUIStats();
+                                
+                                // 2. Tampilkan notifikasi di log history
+                                logActivity("fas fa-clock", "bg-red-100 text-red-600", "Timeout Handshake", "Micro:bit tidak merespon (Auto Error)");
+
+                                // 3. Simpan data gagal ke Firebase
+                                if (state.db) {
+                                    update(ref(state.db, `${state.currentPath}/gagal`), { 
+                                        [state.sortingData.gagal-1]: { timestamp: Date.now(), value: 1 } 
+                                    }).catch(e => console.error("Firebase Error:", e));
+                                }
+
+                                // 4. Tambahkan rekam jejak ke log Excel
+                                const currentMode = $('mode-selector').value;
+                                const timeStr = new Date().toLocaleTimeString('id-ID');
+                                const properColorName = colorCode.charAt(0).toUpperCase() + colorCode.slice(1);
+                                
+                                state.excelLogs.push({
+                                    timestamp: timeStr,
+                                    warna: properColorName,
+                                    mode: currentMode,
+                                    status: "Timeout/Error",
+                                    nilai: 0
+                                });
+                            }
+                        }, 12000); // 12 detik timeout
+                    }
+                }
+            }
+        }
+
+        async function triggerSortAction(category) {
+            state.sortingData[category]++;
+            state.sortingData.total++;
+            
+            const currentMode = $('mode-selector').value;
+            const timeStr = new Date().toLocaleTimeString('id-ID');
+            const properColorName = category.charAt(0).toUpperCase() + category.slice(1);
+            
+            state.excelLogs.push({
+                timestamp: timeStr,
+                warna: properColorName,
+                mode: currentMode,
+                status: "Berhasil",
+                nilai: 1
+            });
+
+            updateUIStats(); updateChart();
+
+            logActivity(
+                'fas fa-check-circle',
+                category === 'kuning' ? 'bg-yellow-100 text-yellow-600' : (category === 'biru' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'),
+                `${properColorName} Tersortir (${currentMode})`,
+                `Handshake berhasil pkl ${timeStr}`
+            );
+
+            if (state.db) {
+                try {
+                    await update(ref(state.db, `${state.currentPath}/${category}`), {
+                        [state.sortingData[category]-1]: { timestamp: Date.now(), mode: currentMode, value: 1 }
+                    });
+                } catch(e) {}
+            }
+        }
+
+        window.exportExcel = () => {
+            if(state.excelLogs.length === 0) return showToast("Belum ada data untuk diexport!");
+            
+            let csv = "Timestamp,Warna,Mode,Status,Nilai\n";
+            state.excelLogs.forEach(row => {
+                csv += `${row.timestamp},${row.warna},${row.mode},${row.status},${row.nilai}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `SortData_${new Date().getTime()}.csv`);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            showToast("Berhasil mendownload Excel/CSV!");
+        };
+
+        window.logMissort = async () => {
+            state.sortingData.gagal++; updateUIStats();
+            logActivity('fas fa-exclamation-triangle', 'bg-orange-100 text-orange-600', 'Manual QC: Error Dicatat', new Date().toLocaleTimeString('id-ID'));
+            if (state.db) {
+                await update(ref(state.db, `${state.currentPath}/gagal`), { [state.sortingData.gagal-1]: { timestamp: Date.now(), value: 1 } });
+            }
+        };
+
+        window.resetData = async () => {
+            if (confirm("Reset seluruh data visual, memori history, dan cloud?")) {
+                state.sortingData = { kuning: 0, biru: 0, merah: 0, gagal: 0, total: 0 };
+                state.excelLogs = [];
+                updateUIStats(); updateChart();
+                if (state.db) await set(ref(state.db, state.currentPath), { kuning: null, biru: null, merah: null, gagal: null });
+                showToast("Sistem direset!");
+                $('log-panel').innerHTML = '';
+            }
+        };
+
+        function updateUIStats() {
+            $('stat-total').innerText = state.sortingData.total;
+            $('stat-kuning').innerText = state.sortingData.kuning;
+            $('stat-biru').innerText = state.sortingData.biru;
+            $('stat-merah').innerText = state.sortingData.merah;
+            $('stat-gagal').innerText = state.sortingData.gagal;
+        }
+
+        function initChart() {
+            state.chart = new Chart($('sortingChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Kuning', 'Biru', 'Merah'],
+                    datasets: [{ data: [0,0,0], backgroundColor: ['#eab308', '#3b82f6', '#ef4444'], borderRadius: 12 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } } } }
+            });
+        }
+
+        function updateChart() {
+            if(!state.chart) return;
+            state.chart.data.datasets[0].data = [state.sortingData.kuning, state.sortingData.biru, state.sortingData.merah];
+            state.chart.update();
+        }
+
+        $('btn-conn-fb').onclick = async () => {
+            const apiKey = $('fb-key').value.trim(), dbUrl = $('fb-url').value.trim(), path = $('fb-path').value.trim();
+            if(!apiKey || !dbUrl || !path) return showToast("Lengkapi kolom Firebase!");
+            try {
+                const apps = getApps(); if (apps.length > 0) await deleteApp(apps[0]);
+                if (state.unsubscribe) state.unsubscribe();
+                
+                state.db = getDatabase(initializeApp({ apiKey, databaseURL: dbUrl, projectId: dbUrl.split('//')[1]?.split('.')[0] }));
+                state.currentPath = path;
+                
+                state.unsubscribe = onValue(ref(state.db, path), (snap) => {
+                    const data = snap.val() || {};
+                    const count = (obj) => obj ? (Array.isArray(obj) ? obj.filter(x=>x!==null).length : Object.keys(obj).length) : 0;
+                    state.sortingData = { kuning: count(data.kuning), biru: count(data.biru), merah: count(data.merah), gagal: count(data.gagal), total: count(data.kuning)+count(data.biru)+count(data.merah) };
+                    updateUIStats(); updateChart();
+                    $('status-fb').className = "px-3 py-1 rounded-full bg-green-500 text-[10px] font-bold text-white";
+                    $('status-fb').innerText = "FB: SYNCED";
+                });
+                showToast("Firebase Connected!");
+            } catch(e) { showToast("FB Error: " + e.message); }
+        };
+
+        window.onload = () => { initChart(); };
+    </script>
+</body>
+</html>
