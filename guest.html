@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="description" content="VERNOVA — Mode Guest. Pantau data sorting secara realtime, read-only.">
+<link rel="icon" type="image/jpeg" href="vernova.jpeg">
+<link rel="apple-touch-icon" href="vernova.jpeg">
+<title>VERNOVA · Mode Guest (Lihat Saja)</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { darkMode: 'class' };</script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Rich Export Libraries (guest: baca saja, tidak menulis ke Firebase) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --surface-solid:#ffffff;
+  --surface-soft:#eef2f7;
+  --border:#e2e8f0; --text:#0f172a; --muted:#64748b;
+  --brand:#1d4ed8; --shadow:0 1px 2px rgba(15,23,42,.06),0 10px 28px -18px rgba(15,23,42,.22);
+}
+html.dark{
+  --bg:#0b1220; --surface:#121d33; --surface-solid:#16233f;
+  --surface-soft:rgba(148,163,184,.12);
+  --border:rgba(148,163,184,.18); --text:#e8eef7; --muted:#94a3b8;
+  --brand:#3b82f6; --shadow:0 1px 2px rgba(0,0,0,.4),0 14px 30px -18px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  overflow:hidden; -webkit-font-smoothing:antialiased;
+  transition:background .25s ease,color .25s ease;
+}
+.t-main{color:var(--text);} .t-muted{color:var(--muted);}
+.font-display{font-family:'Inter',system-ui,sans-serif;letter-spacing:-.02em;}
+
+#app-shell{position:relative;z-index:1;display:flex;height:100vh;height:100dvh;width:100%;background:var(--bg);}
+.main-area{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;}
+
+#sidebar{
+  width:264px;flex:0 0 264px;display:none;flex-direction:column;gap:1rem;
+  padding:1.25rem;height:100%;overflow-y:auto;
+  border-right:1px solid var(--border);background:var(--surface);
+}
+@media(min-width:1024px){#sidebar{display:flex;}}
+
+.topbar{
+  display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;
+  padding:.6rem .85rem;border-bottom:1px solid var(--border);
+  background:var(--surface);flex:0 0 auto;z-index:20;
+}
+@media(min-width:1024px){.topbar{padding:.7rem 1.4rem;gap:.75rem;}}
+.status-group{display:flex;align-items:center;gap:.4rem;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none;}
+.status-group::-webkit-scrollbar{display:none;}
+.topbar-actions{display:flex;align-items:center;gap:.45rem;margin-left:auto;flex:0 0 auto;}
+
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:1rem;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;}
+@media(min-width:768px){.scroll-area{padding:1.5rem;}}
+@media(min-width:1280px){.scroll-area{padding:2rem;}}
+.page{max-width:1220px;margin-inline:auto;width:100%;animation:pageIn .3s ease-out both;}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.page .card{animation:cardIn .3s ease-out both;}
+@keyframes logIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes metricPop{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+.metric-value.pop{animation:metricPop .3s ease-out;}
+
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:1rem;
+  box-shadow:var(--shadow);transition:transform .22s ease,border-color .22s ease;
+}
+.card-hover:hover{transform:translateY(-2px);border-color:#c7d7f8;}
+.card-title{font-weight:800;font-size:.82rem;display:flex;align-items:center;gap:.5rem;}
+.card-title i{color:var(--brand);}
+
+.pill{
+  font-size:.58rem;font-weight:800;letter-spacing:.05em;padding:.3rem .6rem;
+  border-radius:999px;background:var(--surface-soft);color:var(--muted);
+  border:1px solid var(--border);white-space:nowrap;transition:.25s;
+}
+.pill.on{background:#dcfce7;color:#15803d;border-color:#86efac;}
+.pill.blue{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd;}
+.pill.warn{background:#fef3c7;color:#b45309;border-color:#fcd34d;}
+html.dark .pill.on{color:#4ade80;} html.dark .pill.blue{color:#60a5fa;} html.dark .pill.warn{color:#facc15;}
+
+.metric-value{font-size:clamp(1.5rem,4vw,2rem);font-weight:800;line-height:1.05;letter-spacing:-.02em;}
+.metric-label{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+.metric-icon{width:38px;height:38px;border-radius:.8rem;display:flex;align-items:center;justify-content:center;font-size:.95rem;margin-bottom:.65rem;}
+
+.icon-btn{
+  width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:.7rem;background:var(--surface);border:1px solid var(--border);
+  color:var(--muted);cursor:pointer;transition:background .2s ease,color .2s ease;flex:0 0 auto;
+}
+.icon-btn:hover{color:var(--brand);border-color:#bfdbfe;background:#eff6ff;}
+html.dark .icon-btn:hover{background:rgba(59,130,246,.12);}
+.btn-primary{background:var(--brand);color:#fff;font-weight:700;border-radius:.75rem;border:none;cursor:pointer;transition:background .2s ease;}
+.btn-primary:hover{background:#1e40af;}
+.side-btn{
+  display:flex;align-items:center;gap:.75rem;width:100%;padding:.7rem .85rem;
+  border-radius:.75rem;color:var(--muted);font-weight:600;font-size:.83rem;
+  background:transparent;border:1px solid transparent;cursor:pointer;text-align:left;
+  position:relative;overflow:hidden;
+  transition:background .2s ease,color .2s ease,transform .15s ease;
+}
+.side-btn i{transition:transform .2s ease;}
+.side-btn:hover{background:var(--surface-soft);color:var(--text);}
+.side-btn:hover i{transform:translateX(2px);}
+.side-btn:active{transform:scale(.97);}
+.side-btn::after{
+  content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:999px;
+  background:var(--brand);transform:scaleY(0);transform-origin:top;transition:transform .22s ease;
+}
+.side-btn.active{background:#e8effe;color:var(--brand);}
+.side-btn.active::after{transform:scaleY(1);}
+.side-btn.active i{animation:iconPop .35s ease-out;}
+html.dark .side-btn.active{background:rgba(59,130,246,.15);}
+html.dark .side-btn:hover{background:rgba(148,163,184,.12);color:var(--text);}
+@keyframes iconPop{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes drawerItem{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+
+.log-item{
+  display:flex;align-items:center;gap:.7rem;padding:.6rem .7rem;border-radius:.8rem;
+  background:var(--surface);border:1px solid var(--border);animation:logIn .28s ease-out;
+}
+.log-ico{width:30px;height:30px;border-radius:.65rem;display:flex;align-items:center;justify-content:center;font-size:.7rem;flex:0 0 auto;}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}70%{box-shadow:0 0 0 10px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+
+#btn-menu{display:inline-flex;}
+@media(min-width:1024px){#btn-menu{display:none!important;}}
+#drawer-backdrop{position:fixed;inset:0;z-index:140;background:rgba(15,23,42,.45);opacity:0;pointer-events:none;transition:opacity .28s ease;}
+#drawer-backdrop.show{opacity:1;pointer-events:auto;}
+#mobile-drawer{
+  position:fixed;top:0;left:0;bottom:0;z-index:150;width:min(320px,86vw);
+  display:flex;flex-direction:column;gap:1rem;background:var(--surface-solid);
+  border-right:1px solid var(--border);padding:1.1rem;
+  padding-top:calc(1.1rem + env(safe-area-inset-top,0px));
+  transform:translateX(-103%);transition:transform .32s ease-out;overflow-y:auto;
+}
+#mobile-drawer.open{transform:translateX(0);}
+@media(min-width:1024px){#mobile-drawer,#drawer-backdrop{display:none!important;}}
+.mnav-btn{
+  display:flex;align-items:center;gap:.8rem;width:100%;padding:.85rem .95rem;border-radius:.75rem;
+  font-size:.85rem;font-weight:700;color:var(--muted);background:transparent;border:none;cursor:pointer;min-height:48px;
+  position:relative;overflow:hidden;
+  transition:background .2s ease,color .2s ease,transform .15s ease;
+}
+.mnav-btn i{transition:transform .2s ease;}
+.mnav-btn:hover{background:var(--surface-soft);color:var(--text);}
+.mnav-btn:hover i{transform:translateX(2px);}
+.mnav-btn:active{transform:scale(.97);}
+.mnav-btn::after{
+  content:'';position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:999px;
+  background:var(--brand);transform:scaleY(0);transform-origin:top;transition:transform .22s ease;
+}
+.mnav-btn.active{background:#e8effe;color:var(--brand);}
+.mnav-btn.active::after{transform:scaleY(1);}
+.mnav-btn.active i{animation:iconPop .35s ease-out;}
+html.dark .mnav-btn.active{background:rgba(59,130,246,.15);}
+html.dark .mnav-btn:hover{background:rgba(148,163,184,.12);color:var(--text);}
+#mobile-drawer.open .mnav-btn{animation:drawerItem .28s ease-out both;}
+#mobile-drawer.open nav .mnav-btn:nth-child(2){animation-delay:.05s;}
+
+#toast{
+  position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));right:16px;left:16px;z-index:500;
+  display:flex;justify-content:flex-end;pointer-events:none;
+  transform:translateY(140%);transition:transform .3s ease-out;max-width:calc(100vw - 32px);margin-left:auto;
+}
+@media(min-width:640px){#toast{left:auto;}}
+#toast.show{transform:translateY(0);}
+.toast-inner{
+  background:#0f172a;color:#fff;padding:.8rem 1.1rem;border-radius:.8rem;font-size:.75rem;font-weight:600;
+  display:flex;align-items:center;gap:.6rem;pointer-events:auto;border:1px solid rgba(148,163,184,.25);max-width:100%;
+}
+.modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:1rem;}
+.modal.open{display:flex;}
+.modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.5);}
+.modal-panel{
+  position:relative;z-index:1;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;
+  border-radius:1rem;padding:1.5rem;background:var(--surface-solid);
+  border:1px solid var(--border);box-shadow:var(--shadow);animation:modalIn .3s ease-out both;
+}
+@keyframes modalIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(max-width:640px){
+  .modal{align-items:flex-end;padding:0;}
+  .modal-panel{max-width:100%;width:100%;max-height:92dvh;border-radius:1.4rem 1.4rem 0 0;padding:1.25rem 1.1rem calc(1.25rem + env(safe-area-inset-bottom,0px));border-bottom:none;}
+  .modal-panel::before{content:'';display:block;width:44px;height:5px;border-radius:999px;background:rgba(148,163,184,.45);margin:0 auto .9rem;}
+}
+.export-tile{
+  display:flex;flex-direction:column;align-items:center;gap:.3rem;padding:1.1rem .6rem;
+  border-radius:.9rem;background:var(--surface);border:1px solid var(--border);
+  cursor:pointer;transition:transform .2s ease,border-color .2s ease;color:var(--text);
+}
+.export-tile i{font-size:1.4rem;margin-bottom:.15rem;}
+.export-tile span{font-size:.78rem;font-weight:700;}
+.export-tile small{font-size:.58rem;color:var(--muted);font-weight:600;letter-spacing:.04em;}
+.export-tile:hover{transform:translateY(-2px);border-color:#bfdbfe;}
+@keyframes tileIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+.modal.open .export-tile{animation:tileIn .35s ease-out both;}
+.modal.open .export-tile:nth-child(2){animation-delay:.06s;}
+.modal.open .export-tile:nth-child(3){animation-delay:.12s;}
+.modal.open .export-tile:nth-child(4){animation-delay:.18s;}
+.metric-value,.font-mono{font-variant-numeric:tabular-nums;}
+.guest-export-banner{
+  background:#dc2626;color:#fff;border-radius:.8rem;
+  padding:.8rem 1rem;text-align:center;
+  font-weight:800;font-size:1.05rem;letter-spacing:.08em;
+}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px;}
+</style>
+</head>
+
+<body>
+<div id="app-shell">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside id="sidebar">
+    <div class="flex items-center gap-3 px-1">
+      <img src="vernova.jpeg" alt="Logo VERNOVA" class="w-10 h-10 rounded-xl shrink-0" style="object-fit:cover;border:1px solid var(--border)">
+      <div class="leading-tight">
+        <p class="font-display font-extrabold text-[15px]">VERNOVA</p>
+        <p class="text-[10px] font-semibold t-muted" data-i18n="brand.tag">Smart Sorting System</p>
+      </div>
+    </div>
+
+    <div class="rounded-xl px-3 py-2 text-[11px] font-bold" style="background:#e8effe;color:var(--brand)">
+      <i class="fas fa-eye mr-1"></i><span data-i18n="guest.badge">Mode Guest — Lihat Saja</span>
+    </div>
+
+    <nav class="flex flex-col gap-1.5 mt-1">
+      <button class="side-btn active" onclick="document.querySelector('.scroll-area').scrollTo({top:0,behavior:'smooth'})">
+        <i class="fas fa-chart-line"></i><span data-i18n="nav.dash">Dasbor Pabrik</span>
+      </button>
+      <button class="side-btn" onclick="document.getElementById('guest-dev').scrollIntoView({behavior:'smooth',block:'center'})">
+        <i class="fas fa-users"></i><span data-i18n="guest.dev">Developer</span>
+      </button>
+    </nav>
+
+    <div class="mt-auto rounded-xl p-4 border" style="background:var(--surface-soft);border-color:var(--border)">
+      <p class="text-[10px] font-bold" style="color:var(--brand)">Read-only</p>
+      <p class="text-[11px] t-muted mt-1 leading-relaxed" data-i18n="guest.note">Mode guest tidak bisa mengubah data. Semua angka mengikuti Firebase admin otomatis.</p>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-area">
+    <header class="topbar">
+      <button id="btn-menu" class="icon-btn" aria-label="Buka menu" aria-expanded="false" onclick="window.toggleDrawer(true)">
+        <i class="fas fa-bars text-sm"></i>
+      </button>
+      <img src="vernova.jpeg" alt="Logo VERNOVA" class="w-9 h-9 rounded-lg shrink-0 lg:hidden" style="object-fit:cover;border:1px solid var(--border)">
+
+      <div class="status-group" role="status" aria-label="Status koneksi">
+        <div id="status-fb" class="pill">FB: MENGHUBUNGKAN...</div>
+        <div id="status-delay" class="pill blue">±0.5 dtk</div>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border" style="background:var(--surface-soft);border-color:var(--border)">
+          <i class="fas fa-clock text-[10px]" style="color:var(--brand)"></i>
+          <span id="live-clock" class="font-mono text-xs font-bold">00:00:00</span>
+        </div>
+        <button class="icon-btn" title="Back to Home" onclick="window.goHome()"><i class="fas fa-house text-xs"></i></button>
+        <button id="lang-btn" class="icon-btn" title="ID/EN" onclick="window.toggleLang()" style="width:auto;padding:0 .7rem;font-size:.7rem;font-weight:800;">ID</button>
+        <button class="icon-btn" title="Tema" onclick="window.toggleTheme()"><i class="fas fa-moon text-xs"></i></button>
+        <button id="btn-retry" class="btn-primary px-3 py-2 text-[11px] font-bold hidden" onclick="window.connectFB()">HUBUNGKAN ULANG</button>
+      </div>
+    </header>
+
+    <div class="scroll-area">
+      <section class="page">
+        <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-5">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="live-dot"></span>
+              <span class="text-[10px] font-bold uppercase" style="color:var(--brand);letter-spacing:.15em;" data-i18n="dash.live">Live Production — Guest</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold tracking-tight" data-i18n="dash.title">Dasbor Pabrik Pintar</h1>
+            <p class="text-xs t-muted mt-1"><span data-i18n="dash.sub">Data sorting realtime dari Firebase.</span> <span data-i18n="guest.sync">Sinkron ±0.5 detik mengikuti mode admin.</span></p>
+          </div>
+          <div class="text-xs t-muted">Update terakhir: <span id="last-sync" class="font-mono font-bold t-main">—</span></div>
+        </div>
+
+        <!-- METRICS -->
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-5">
+          <div class="card card-hover p-4 sm:p-5">
+            <div class="metric-icon" style="background:#e8effe;color:var(--brand)"><i class="fas fa-boxes-stacked"></i></div>
+            <p class="metric-label" data-i18n="metric.total">Total Diproses</p>
+            <p id="stat-total" class="metric-value mt-1" style="color:var(--brand)">0</p>
+          </div>
+          <div class="card card-hover p-4 sm:p-5">
+            <div class="metric-icon" style="background:#fef3c7;color:#b45309"><i class="fas fa-circle"></i></div>
+            <p class="metric-label" data-i18n="metric.yellow">Kuning</p>
+            <p id="stat-kuning" class="metric-value mt-1 t-main">0</p>
+          </div>
+          <div class="card card-hover p-4 sm:p-5">
+            <div class="metric-icon" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-circle"></i></div>
+            <p class="metric-label" data-i18n="metric.blue">Biru</p>
+            <p id="stat-biru" class="metric-value mt-1 t-main">0</p>
+          </div>
+          <div class="card card-hover p-4 sm:p-5">
+            <div class="metric-icon" style="background:#fee2e2;color:#b91c1c"><i class="fas fa-circle"></i></div>
+            <p class="metric-label" data-i18n="metric.red">Merah</p>
+            <p id="stat-merah" class="metric-value mt-1 t-main">0</p>
+          </div>
+          <div class="card card-hover p-4 sm:p-5 col-span-2 md:col-span-1" style="border-color:#fecaca">
+            <div class="metric-icon" style="background:#fef2f2;color:#dc2626"><i class="fas fa-triangle-exclamation"></i></div>
+            <p class="metric-label" data-i18n="metric.error">Error</p>
+            <p id="stat-error" class="metric-value mt-1" style="color:#dc2626">0</p>
+          </div>
+        </div>
+
+        <!-- EXPORT STRIP (guest: unduh saja, tidak mengubah Firebase) -->
+        <div class="card p-4 mb-5 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-file-export" style="color:var(--brand)"></i>
+            <p class="text-[12px] font-bold t-main" data-i18n="exp.strip">Unduh laporan dari data realtime ini</p>
+          </div>
+          <button onclick="window.openExportModal()" class="btn-primary w-full sm:w-auto px-4 py-3 sm:py-2.5 text-[12px] sm:text-[11px] font-bold flex items-center justify-center gap-2 min-h-[44px]">
+            <i class="fas fa-file-export"></i><span data-i18n="btn.export">Export Laporan</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-5 mb-5">
+          <div class="card p-4 sm:p-5 xl:col-span-2">
+            <h3 class="card-title mb-4"><i class="fas fa-chart-column"></i><span data-i18n="chart.title">Distribusi Penyortiran</span></h3>
+            <div class="h-[210px] sm:h-[240px]"><canvas id="sortingChart"></canvas></div>
+          </div>
+          <div class="card p-4 sm:p-5 flex flex-col justify-center">
+            <div class="rounded-xl p-3 text-[11px] leading-relaxed" style="background:var(--surface-soft)">
+              <i class="fas fa-lock mr-1" style="color:var(--brand)"></i>
+              <span data-i18n="guest.readonly">Guest hanya membaca. Tidak ada tombol ubah, hapus, atau kirim di halaman ini.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-4 sm:p-5">
+          <h3 class="card-title mb-3"><i class="fas fa-clock-rotate-left"></i><span data-i18n="log.title">Riwayat Langsung</span></h3>
+          <div class="space-y-2 max-h-[320px] overflow-y-auto pr-1" id="log-panel">
+            <p class="text-[11px] t-muted italic" data-i18n="log.empty">Menunggu data dari Firebase...</p>
+          </div>
+        </div>
+
+        <div id="guest-dev" class="card p-4 sm:p-5 mt-4 sm:mt-5">
+          <h3 class="card-title mb-1"><i class="fas fa-users"></i><span data-i18n="guest.devTitle">Developer VERNOVA</span></h3>
+          <p class="text-[11px] t-muted mb-3" data-i18n="guest.devSub">Tim di balik mesin penyortir pintar ini.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="rounded-xl p-4 border text-center" style="background:var(--surface-soft);border-color:var(--border)">
+              <div class="w-11 h-11 rounded-xl mx-auto mb-2 flex items-center justify-center text-white font-extrabold" style="background:#b45309">HA</div>
+              <p class="font-bold text-sm t-main">Hamzah Aufa Ibrahim</p>
+              <p class="text-[10px] t-muted mt-0.5">Mekanik</p>
+            </div>
+            <div class="rounded-xl p-4 border text-center" style="background:var(--surface-soft);border-color:var(--border)">
+              <div class="w-11 h-11 rounded-xl mx-auto mb-2 flex items-center justify-center text-white font-extrabold" style="background:#1d4ed8">MA</div>
+              <p class="font-bold text-sm t-main">Muhammad Alif Al Hafidz</p>
+              <p class="text-[10px] t-muted mt-0.5">Programmer Website dan AI</p>
+            </div>
+            <div class="rounded-xl p-4 border text-center" style="background:var(--surface-soft);border-color:var(--border)">
+              <div class="w-11 h-11 rounded-xl mx-auto mb-2 flex items-center justify-center text-white font-extrabold" style="background:#0f766e">NA</div>
+              <p class="font-bold text-sm t-main">Naufal Ahmad Bilal</p>
+              <p class="text-[10px] t-muted mt-0.5">Programmer Otak Robot dan Elektronika</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- DRAWER (HP) -->
+<div id="drawer-backdrop" onclick="window.toggleDrawer(false)"></div>
+<aside id="mobile-drawer" aria-hidden="true" aria-label="Menu guest">
+  <div class="flex items-center gap-3">
+    <img src="vernova.jpeg" alt="Logo VERNOVA" class="w-10 h-10 rounded-xl shrink-0" style="object-fit:cover;border:1px solid var(--border)">
+    <div class="leading-tight flex-1">
+      <p class="font-display font-extrabold text-[15px]">VERNOVA</p>
+      <p class="text-[10px] font-semibold t-muted">Mode Guest</p>
+    </div>
+    <button class="icon-btn" aria-label="Tutup menu" onclick="window.toggleDrawer(false)"><i class="fas fa-xmark text-xs"></i></button>
+  </div>
+  <div class="flex items-center gap-2 px-3 py-2.5 rounded-xl border" style="background:var(--surface-soft);border-color:var(--border)">
+    <span class="live-dot"></span>
+    <span class="text-[10px] font-bold uppercase" style="color:var(--brand)">Live • ±0.5 dtk</span>
+    <span id="live-clock-drawer" class="font-mono text-[11px] font-bold ml-auto">00:00:00</span>
+  </div>
+  <nav class="flex flex-col gap-1.5">
+    <button class="mnav-btn active" onclick="window.toggleDrawer(false);document.querySelector('.scroll-area').scrollTo({top:0,behavior:'smooth'})">
+      <i class="fas fa-chart-line"></i><span data-i18n="nav.dash">Dasbor Pabrik</span>
+    </button>
+    <button class="mnav-btn" onclick="window.toggleDrawer(false);document.getElementById('guest-dev').scrollIntoView({behavior:'smooth',block:'center'})">
+      <i class="fas fa-users"></i><span data-i18n="guest.dev">Developer</span>
+    </button>
+  </nav>
+  <div class="mt-auto rounded-xl p-4 border text-[11px] t-muted leading-relaxed" style="background:var(--surface-soft);border-color:var(--border)">
+    <span data-i18n="guest.note">Mode guest tidak bisa mengubah data. Semua angka mengikuti Firebase admin otomatis.</span>
+  </div>
+</aside>
+
+<!-- ===================== MODAL: EXPORT (GUEST) ===================== -->
+<div id="export-modal" class="modal">
+  <div class="modal-backdrop" onclick="window.closeModal('export-modal')"></div>
+  <div class="modal-panel">
+    <div class="guest-export-banner mb-4">
+      <i class="fas fa-eye mr-2"></i><span data-i18n="exp.guestTitle">EXPORT IN GUEST</span>
+    </div>
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-extrabold text-base flex items-center gap-2"><i class="fas fa-file-export" style="color:var(--brand)"></i><span data-i18n="exp.title">Export Report</span></h3>
+      <button onclick="window.closeModal('export-modal')" class="icon-btn"><i class="fas fa-xmark text-xs"></i></button>
+    </div>
+
+    <div class="grid grid-cols-3 sm:grid-cols-5 gap-2.5 mb-5 p-3 rounded-2xl border" style="background:var(--surface-soft);border-color:var(--border)">
+      <div class="text-center">
+        <p class="metric-label" data-i18n="metric.total">Total</p>
+        <p id="exp-total" class="text-lg font-extrabold" style="color:var(--brand)">0</p>
+      </div>
+      <div class="text-center">
+        <p class="metric-label" data-i18n="metric.yellow">Kuning</p>
+        <p id="exp-kuning" class="text-lg font-extrabold" style="color:#b45309">0</p>
+      </div>
+      <div class="text-center">
+        <p class="metric-label" data-i18n="metric.blue">Biru</p>
+        <p id="exp-biru" class="text-lg font-extrabold" style="color:#1d4ed8">0</p>
+      </div>
+      <div class="text-center">
+        <p class="metric-label" data-i18n="metric.red">Merah</p>
+        <p id="exp-merah" class="text-lg font-extrabold" style="color:#b91c1c">0</p>
+      </div>
+      <div class="text-center col-span-3 sm:col-span-1 rounded-xl py-1" style="background:#fef2f2;border:1px solid #fecaca">
+        <p class="metric-label" data-i18n="metric.error">Error</p>
+        <p id="exp-gagal" class="text-lg font-extrabold" style="color:#dc2626">0</p>
+      </div>
+    </div>
+
+    <p class="text-[10px] font-bold uppercase t-muted mb-3" data-i18n="exp.choose">Choose a format</p>
+
+    <div class="grid grid-cols-3 gap-2 sm:gap-3">
+      <button class="export-tile" onclick="window.doExport('xlsx')">
+        <i class="fas fa-file-excel" style="color:#16a34a"></i><span>Excel</span><small>.XLSX · COLORED</small>
+      </button>
+      <button class="export-tile" onclick="window.doExport('pdf')">
+        <i class="fas fa-file-pdf" style="color:#dc2626"></i><span>PDF</span><small>.PDF · PRINT READY</small>
+      </button>
+      <button class="export-tile" onclick="window.doExport('csv')">
+        <i class="fas fa-file-csv" style="color:#0891b2"></i><span>CSV</span><small>.CSV · RAW DATA</small>
+      </button>
+    </div>
+
+    <p class="text-[10px] t-muted mt-4 text-center leading-relaxed" data-i18n="exp.note">
+      Laporan guest: header EXPORT IN GUEST, ringkasan sortir + error, timestamp penuh, baris berwarna.
+    </p>
+  </div>
+</div>
+
+<div id="toast"><div class="toast-inner"><i class="fas fa-circle-info" style="color:#60a5fa"></i><span id="toast-msg">Menghubungkan...</span></div></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+/* Firebase guest — selalu tersambung, read-only (tanpa update/set) */
+const FB_CONFIG = {
+  apiKey: "AIzaSyAVwURHeateFtCSNuzLH69Gt3nkjXdEXzM",
+  databaseURL: "https://smart-factory-ai-7b576-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smart-factory-ai-7b576"
+};
+const FB_PATH = "smart_factory/sorting_line";
+const SYNC_DELAY_MS = 500; // selisih ±0.5 detik mengikuti admin
+
+const state = { lang: 'id', chart: null, chartYMax: 5, sortingData: { kuning: 0, biru: 0, merah: 0, gagal: 0, total: 0 }, exportLogs: [], _delayT: null, _retries: 0 };
+const $ = (id) => document.getElementById(id);
+
+const I18N = {
+  id: {
+    'brand.tag': 'Smart Sorting System', 'guest.badge': 'Mode Guest — Lihat Saja', 'guest.conn': 'Status Koneksi', 'guest.dev': 'Developer', 'guest.devTitle': 'Developer VERNOVA', 'guest.devSub': 'Tim di balik mesin penyortir pintar ini.',
+    'guest.note': 'Mode guest tidak bisa mengubah data. Semua angka mengikuti Firebase admin otomatis.',
+    'guest.readonly': 'Guest hanya membaca. Tidak ada tombol ubah, hapus, atau kirim di halaman ini.',
+    'guest.connTitle': 'Koneksi Firebase', 'guest.sync': 'Sinkron ±0.5 detik mengikuti mode admin.',
+    'nav.dash': 'Dasbor Pabrik', 'dash.live': 'Live Production — Guest', 'dash.title': 'Dasbor Pabrik Pintar',
+    'dash.sub': 'Data sorting realtime dari Firebase.',
+    'metric.total': 'Total Diproses', 'metric.yellow': 'Kuning', 'metric.blue': 'Biru', 'metric.red': 'Merah', 'metric.error': 'Error',
+    'chart.title': 'Distribusi Penyortiran', 'log.title': 'Riwayat Langsung', 'log.empty': 'Menunggu data dari Firebase...',
+    'btn.export': 'Export Laporan', 'exp.strip': 'Unduh laporan dari data realtime ini',
+    'exp.guestTitle': 'EXPORT IN GUEST', 'exp.title': 'Export Report', 'exp.choose': 'Pilih format',
+    'exp.note': 'Laporan guest: header EXPORT IN GUEST, ringkasan sortir + error, timestamp penuh, baris berwarna.'
+  },
+  en: {
+    'brand.tag': 'Smart Sorting System', 'guest.badge': 'Guest Mode — View Only', 'guest.conn': 'Connection Status', 'guest.dev': 'Developer', 'guest.devTitle': 'VERNOVA Developers', 'guest.devSub': 'The team behind this smart sorting machine.',
+    'guest.note': 'Guest mode cannot change data. All numbers follow the admin Firebase automatically.',
+    'guest.readonly': 'Guest is read-only. No edit, delete, or send buttons on this page.',
+    'guest.connTitle': 'Firebase Connection', 'guest.sync': 'Syncs ±0.5s following admin mode.',
+    'nav.dash': 'Factory Dashboard', 'dash.live': 'Live Production — Guest', 'dash.title': 'Smart Factory Dashboard',
+    'dash.sub': 'Realtime sorting data from Firebase.',
+    'metric.total': 'Total Processed', 'metric.yellow': 'Yellow', 'metric.blue': 'Blue', 'metric.red': 'Red', 'metric.error': 'Error',
+    'chart.title': 'Sorting Distribution', 'log.title': 'Live History', 'log.empty': 'Waiting for Firebase data...',
+    'btn.export': 'Export Report', 'exp.strip': 'Download a report from this realtime data',
+    'exp.guestTitle': 'EXPORT IN GUEST', 'exp.title': 'Export Report', 'exp.choose': 'Choose a format',
+    'exp.note': 'Guest report: EXPORT IN GUEST header, sort + error summary, full timestamps, colored rows.'
+  }
+};
+
+function showToast(msg) {
+  const el = $('toast');
+  $('toast-msg').innerText = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+window.goHome = () => {
+  try { sessionStorage.removeItem('vernova_admin_auth'); } catch (e) { }
+  window.location.href = 'index.html';
+};
+window.toggleDrawer = (open) => {
+  const drawer = $('mobile-drawer'), backdrop = $('drawer-backdrop'), btn = $('btn-menu');
+  if (!drawer || !backdrop) return;
+  const willOpen = typeof open === 'boolean' ? open : !drawer.classList.contains('open');
+  drawer.classList.toggle('open', willOpen);
+  backdrop.classList.toggle('show', willOpen);
+  drawer.setAttribute('aria-hidden', willOpen ? 'false' : 'true');
+  if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+};
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.toggleDrawer(false); });
+
+window.toggleTheme = () => {
+  const dark = !document.documentElement.classList.contains('dark');
+  document.documentElement.classList.toggle('dark', dark);
+  try { localStorage.setItem('vernova_guest_theme', dark ? 'dark' : 'light'); } catch (e) { }
+};
+window.toggleLang = () => {
+  state.lang = state.lang === 'id' ? 'en' : 'id';
+  try { localStorage.setItem('vernova_guest_lang', state.lang); } catch (e) { }
+  applyLang();
+};
+function applyLang() {
+  document.documentElement.lang = state.lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const v = I18N[state.lang][el.dataset.i18n];
+    if (v !== undefined) el.innerHTML = v;
+  });
+  $('lang-btn').innerText = state.lang.toUpperCase();
+  if (state.chart) { state.chart.data.labels = chartLabels(); state.chart.update('none'); }
+}
+
+setInterval(() => {
+  const time = new Date().toLocaleTimeString('id-ID');
+  const a = $('live-clock'); if (a) a.innerText = time;
+  const c = $('live-clock-drawer'); if (c) c.innerText = time;
+}, 1000);
+
+function setPill(el, cls, text) {
+  if (!el) return;
+  el.className = 'pill' + (cls ? ' ' + cls : '');
+  el.innerText = text;
+}
+function fullTimestamp(d = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function popMetric(id) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
+function updateUIStats() {
+  $('stat-total').innerText = state.sortingData.total;
+  $('stat-kuning').innerText = state.sortingData.kuning;
+  $('stat-biru').innerText = state.sortingData.biru;
+  $('stat-merah').innerText = state.sortingData.merah;
+  const se = $('stat-error'); if (se) se.innerText = state.sortingData.gagal;
+  ['stat-total', 'stat-kuning', 'stat-biru', 'stat-merah', 'stat-error'].forEach(popMetric);
+  $('last-sync').innerText = fullTimestamp(new Date());
+}
+
+function chartLabels() {
+  return state.lang === 'id' ? ['Kuning', 'Biru', 'Merah', 'Error'] : ['Yellow', 'Blue', 'Red', 'Error'];
+}
+function computeYMax(values) {
+  const m = Math.max(...values, 1);
+  if (m <= 5) return 5;
+  if (m <= 10) return 10;
+  if (m <= 20) return 20;
+  if (m <= 50) return 50;
+  if (m <= 100) return 100;
+  if (m <= 200) return 200;
+  if (m <= 500) return 500;
+  return Math.ceil(m / 500) * 500;
+}
+function initChart() {
+  if (typeof Chart === 'undefined' || !$('sortingChart')) return;
+  if (state.chart) { try { state.chart.destroy(); } catch (e) { } state.chart = null; }
+  state.chartYMax = 5;
+  state.chart = new Chart($('sortingChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: chartLabels(),
+      datasets: [{
+        data: [0, 0, 0, 0],
+        backgroundColor: ['#d97706', '#1d4ed8', '#b91c1c', '#94a3b8'],
+        borderRadius: 10, borderSkipped: false, maxBarThickness: 64, minBarLength: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 600, easing: 'easeOutQuart' },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { weight: '700', size: 11 } } },
+        y: { beginAtZero: true, max: 5, grid: { color: 'rgba(148,163,184,.16)' }, ticks: { color: '#94a3b8', precision: 0, font: { size: 11 }, callback: (v) => Number.isInteger(v) ? v : null } }
+      }
+    }
+  });
+}
+function updateChart() {
+  if (!state.chart) return;
+  const d = [state.sortingData.kuning, state.sortingData.biru, state.sortingData.merah, state.sortingData.gagal];
+  const needed = computeYMax(d);
+  if (needed > state.chartYMax) { state.chartYMax = needed; state.chart.options.scales.y.max = needed; }
+  const ds = state.chart.data.datasets[0].data;
+  ds[0] = d[0]; ds[1] = d[1]; ds[2] = d[2]; ds[3] = d[3];
+  state.chart.data.labels = chartLabels();
+  try { state.chart.update(); } catch (e) { }
+}
+
+const COLOR_STYLE = {
+  kuning: 'background:#fef3c7;color:#b45309',
+  biru: 'background:#dbeafe;color:#1d4ed8',
+  merah: 'background:#fee2e2;color:#b91c1c',
+  gagal: 'background:#fef2f2;color:#dc2626'
+};
+function collectEntries(obj) {
+  if (!obj) return [];
+  const arr = Array.isArray(obj) ? obj : Object.values(obj);
+  return arr.filter(x => x !== null && typeof x === 'object');
+}
+function renderFromData(data) {
+  data = data || {};
+  const count = (obj) => collectEntries(obj).length;
+  state.sortingData = {
+    kuning: count(data.kuning), biru: count(data.biru), merah: count(data.merah),
+    gagal: count(data.gagal),
+    total: count(data.kuning) + count(data.biru) + count(data.merah)
+  };
+  updateUIStats();
+  updateChart();
+
+  const events = [];
+  const properName = { kuning: 'Kuning', biru: 'Biru', merah: 'Merah' };
+  [['kuning', 'kuning'], ['biru', 'biru'], ['merah', 'merah'], ['gagal', 'gagal']].forEach(([key, color]) => {
+    collectEntries(data[key]).forEach(e => {
+      events.push({ color, ts: Number(e.timestamp) || 0, mode: e.mode || '-' });
+    });
+  });
+  events.sort((a, b) => b.ts - a.ts);
+
+  /* Log export guest: urut waktu menaik, timestamp penuh, aman untuk Excel/CSV/PDF/DOCX */
+  state.exportLogs = events
+    .slice()
+    .sort((a, b) => a.ts - b.ts)
+    .map(ev => ({
+      timestamp: ev.ts ? fullTimestamp(new Date(ev.ts)) : '-',
+      warna: ev.color === 'gagal' ? 'Unknown' : properName[ev.color],
+      mode: ev.mode,
+      status: ev.color === 'gagal' ? 'Error' : 'Berhasil',
+      nilai: ev.color === 'gagal' ? 0 : 1
+    }));
+
+  const panel = $('log-panel');
+  if (!events.length) {
+    panel.innerHTML = `<p class="text-[11px] t-muted italic">${I18N[state.lang]['log.empty']}</p>`;
+    return;
+  }
+  const names = { kuning: 'Kuning', biru: 'Biru', merah: 'Merah', gagal: 'Error' };
+  const icons = { kuning: 'fas fa-circle', biru: 'fas fa-circle', merah: 'fas fa-circle', gagal: 'fas fa-triangle-exclamation' };
+  panel.innerHTML = events.slice(0, 18).map(ev => `
+    <div class="log-item">
+      <div class="log-ico" style="${COLOR_STYLE[ev.color]}"><i class="${icons[ev.color]}"></i></div>
+      <div class="overflow-hidden">
+        <p class="text-[10px] font-bold t-main truncate">${names[ev.color]}${ev.color === 'gagal' ? '' : ' Tersortir'}</p>
+        <p class="text-[9px] t-muted truncate">${ev.ts ? fullTimestamp(new Date(ev.ts)) : '-'} · ${ev.mode}</p>
+      </div>
+    </div>`).join('');
+}
+
+window.connectFB = () => {
+  setPill($('status-fb'), '', 'FB: MENGHUBUNGKAN...');
+  $('btn-retry').classList.add('hidden');
+  try {
+    const app = initializeApp(FB_CONFIG);
+    const db = getDatabase(app);
+    onValue(ref(db, FB_PATH),
+      (snap) => {
+        state._retries = 0;
+        setPill($('status-fb'), 'on', 'FB: SYNCED');
+        setPill($('status-delay'), 'blue', '±0.5 dtk • LIVE');
+        /* Tunda render 0.5 detik → guest mengikuti admin dengan selisih tetap */
+        clearTimeout(state._delayT);
+        const val = snap.val();
+        state._delayT = setTimeout(() => renderFromData(val), SYNC_DELAY_MS);
+      },
+      (err) => {
+        console.error(err);
+        setPill($('status-fb'), 'warn', 'FB: ERROR');
+        $('btn-retry').classList.remove('hidden');
+        showToast('Firebase guest gagal: ' + (err && err.message ? err.message : err));
+      }
+    );
+    showToast(state.lang === 'id' ? 'Guest tersambung • update 0.5 dtk' : 'Guest connected • 0.5s updates');
+  } catch (e) {
+    console.error(e);
+    setPill($('status-fb'), 'warn', 'FB: ERROR');
+    $('btn-retry').classList.remove('hidden');
+    if (state._retries < 5) { state._retries++; setTimeout(window.connectFB, 2000); }
+  }
+};
+
+/* ================================================================== */
+/*  EXPORT GUEST — baca saja, header EXPORT IN GUEST menonjol         */
+/* ================================================================== */
+function getSummary() {
+  const d = state.sortingData;
+  const attempts = d.total + d.gagal;
+  const rate = attempts > 0 ? ((d.total / attempts) * 100).toFixed(1) : '0.0';
+  return { total: d.total, kuning: d.kuning, biru: d.biru, merah: d.merah, gagal: d.gagal, rate };
+}
+function refreshExportSummary() {
+  const s = getSummary();
+  $('exp-total').innerText = s.total;
+  $('exp-kuning').innerText = s.kuning;
+  $('exp-biru').innerText = s.biru;
+  $('exp-merah').innerText = s.merah;
+  const eg = $('exp-gagal'); if (eg) eg.innerText = s.gagal;
+}
+window.openExportModal = () => { refreshExportSummary(); window.openModal('export-modal'); };
+window.openModal = (id) => { const m = $(id); if (m) m.classList.add('open'); };
+window.closeModal = (id) => { const m = $(id); if (m) m.classList.remove('open'); };
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+});
+
+const COLOR_MAP = {
+  'Kuning': { fill: 'FEF3C7', text: '92400E', rgb: [254, 243, 199] },
+  'Biru': { fill: 'DBEAFE', text: '1E40AF', rgb: [219, 234, 254] },
+  'Merah': { fill: 'FEE2E2', text: '991B1B', rgb: [254, 226, 226] },
+  'Unknown': { fill: 'F1F5F9', text: '475569', rgb: [241, 245, 249] }
+};
+const colorMeta = (name) => COLOR_MAP[name] || COLOR_MAP['Unknown'];
+function localColor(name) {
+  if (state.lang === 'en') {
+    return name === 'Kuning' ? 'Yellow' : name === 'Biru' ? 'Blue' : name === 'Merah' ? 'Red' : name;
+  }
+  return name;
+}
+function timestampTag() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+function safeCell(v) {
+  const s = String(v ?? '');
+  return /^[=+\-@]/.test(s) ? `'${s}` : s;
+}
+function csvEsc(v) {
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function escHtml(v) {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function hexToRgb(hex) {
+  const n = parseInt(hex, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function hasExportData() {
+  return state.exportLogs.length > 0 || (state.sortingData.total + state.sortingData.gagal) > 0;
+}
+function noDataToast() {
+  showToast(state.lang === 'id' ? 'Belum ada data untuk diexport!' : 'No data to export yet!');
+}
+
+function exportCSV() {
+  if (!hasExportData()) return noDataToast();
+  const s = getSummary();
+  const attempts = s.total + s.gagal;
+  const errRate = attempts > 0 ? ((s.gagal / attempts) * 100).toFixed(1) + '%' : '0.0%';
+  let csv = "EXPORT IN GUEST — VERNOVA SMART SORTING FACTORY REPORT\n";
+  csv += "GUEST MODE — read-only guest export (anti-fraud watermark)\n";
+  csv += `Generated,${csvEsc(fullTimestamp(new Date()))}\n`;
+  csv += `Total Processed,${s.total},Yellow,${s.kuning},Blue,${s.biru}\n`;
+  csv += `Red,${s.merah},Error,${s.gagal},Total Attempts,${attempts}\n`;
+  csv += `Success Rate,${s.rate}%,Error Rate,${errRate}\n\n`;
+  csv += "No,Timestamp (YYYY-MM-DD HH:MM:SS),Color,Mode,Status,Value\n";
+  state.exportLogs.forEach((row, i) => {
+    csv += `${i + 1},${csvEsc(safeCell(row.timestamp))},${csvEsc(safeCell(localColor(row.warna)))},${csvEsc(safeCell(row.mode))},${csvEsc(safeCell(row.status))},${row.nilai}\n`;
+  });
+  downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }), `VERNOVA_GUEST_Report_${timestampTag()}.csv`);
+  showToast('CSV guest berhasil diunduh!');
+}
+
+function exportXLSX() {
+  if (typeof XLSX === 'undefined') return showToast('Library Excel belum termuat.');
+  if (!hasExportData()) return noDataToast();
+  const s = getSummary();
+  const rows = state.exportLogs;
+  const attempts = s.total + s.gagal;
+  const aoa = [];
+  aoa.push(['EXPORT IN GUEST']);
+  aoa.push(['VERNOVA — SMART SORTING FACTORY REPORT (GUEST)']);
+  aoa.push(['Generated', fullTimestamp(new Date()), '', 'Total Processed', s.total]);
+  aoa.push(['Success Rate', s.rate + '%', '', 'Error', s.gagal]);
+  aoa.push([]);
+  aoa.push(['SORTING SUMMARY']);
+  aoa.push(['Yellow', s.kuning, 'Blue', s.biru, 'Red', s.merah]);
+  aoa.push(['Error', s.gagal, 'Total Attempts', attempts, 'Success Rate', s.rate + '%']);
+  aoa.push([]);
+  aoa.push(['No', 'Timestamp (YYYY-MM-DD HH:MM:SS)', 'Color', 'Mode', 'Status', 'Value']);
+  const HEADER_ROW = aoa.length - 1;
+  const ERROR_ROW = HEADER_ROW - 2;
+  rows.forEach((r, i) => aoa.push([i + 1, safeCell(r.timestamp), safeCell(localColor(r.warna)), safeCell(r.mode), safeCell(r.status), r.nilai]));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+    { s: { r: 5, c: 0 }, e: { r: 5, c: 5 } }
+  ];
+  ws['!cols'] = [{ wch: 6 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 20 }, { wch: 9 }];
+  ws['!rows'] = [{ hpt: 34 }, { hpt: 28 }, {}, {}, {}, { hpt: 20 }, {}, {}, {}, { hpt: 22 }];
+  const thin = { style: 'thin', color: { rgb: 'CBD5E1' } };
+  const border = { top: thin, bottom: thin, left: thin, right: thin };
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const addr = XLSX.utils.encode_cell({ r: R, c: C });
+      const cell = ws[addr];
+      if (!cell) continue;
+      let style = { font: { sz: 11, color: { rgb: '1E293B' } }, alignment: { vertical: 'center' } };
+      if (R === 0) {
+        style = { font: { sz: 18, bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '991B1B' } }, alignment: { horizontal: 'center', vertical: 'center' } };
+      } else if (R === 1) {
+        style = { font: { sz: 14, bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1D4ED8' } }, alignment: { horizontal: 'center', vertical: 'center' } };
+      } else if (R === 5) {
+        style = { font: { sz: 12, bold: true, color: { rgb: '1D4ED8' } }, fill: { fgColor: { rgb: 'E0E7FF' } }, alignment: { horizontal: 'left', vertical: 'center' } };
+      } else if (R === 6 || R === ERROR_ROW) {
+        const isErr = (R === ERROR_ROW);
+        style = { font: { sz: 11, bold: true, color: { rgb: isErr && (C === 0 || C === 1) ? '991B1B' : '0F172A' } }, fill: { fgColor: { rgb: isErr ? 'FEE2E2' : 'F1F5F9' } }, alignment: { horizontal: 'center' }, border };
+      } else if (R === HEADER_ROW) {
+        style = { font: { sz: 11, bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '0F172A' } }, alignment: { horizontal: 'center', vertical: 'center' }, border };
+      } else if (R > HEADER_ROW) {
+        const rowData = rows[R - HEADER_ROW - 1];
+        const meta = colorMeta(rowData ? rowData.warna : 'Unknown');
+        style = { font: { sz: 11, color: { rgb: meta.text } }, fill: { fgColor: { rgb: meta.fill } }, alignment: { horizontal: C === 0 || C === 5 ? 'center' : 'left', vertical: 'center', wrapText: C === 1 }, border };
+      }
+      cell.s = style;
+      if (R > HEADER_ROW && C === 1) { try { cell.z = '@'; cell.t = 's'; } catch (e) { } }
+    }
+  }
+  try {
+    ws['!freeze'] = { xSplit: 0, ySplit: HEADER_ROW + 1, topLeftCell: 'A' + (HEADER_ROW + 2), state: 'frozen' };
+    ws['!autofilter'] = { ref: `A${HEADER_ROW + 1}:F${HEADER_ROW + 1}` };
+  } catch (e) { }
+  try {
+    wb.Props = {
+      Title: 'VERNOVA Guest Report — GUEST MODE',
+      Subject: 'GUEST MODE — read-only guest export (anti-fraud watermark)',
+      Author: 'VERNOVA Guest',
+      CreatedDate: new Date()
+    };
+  } catch (e) { }
+  XLSX.utils.book_append_sheet(wb, ws, 'Guest Report');
+  XLSX.writeFile(wb, `VERNOVA_GUEST_Report_${timestampTag()}.xlsx`);
+  showToast('Excel guest berhasil diunduh!');
+}
+
+/* PDF guest vektor — satu watermark logo besar di tengah belakang (anti-fraud) */
+function exportPDF() {
+  if (!window.jspdf) return showToast('Library PDF belum termuat.');
+  if (!hasExportData()) return noDataToast();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const s = getSummary();
+  /* Lambang tengah ala dokumen negara di DEPAN isi tapi sangat samar */
+  function drawWatermark() {
+    try {
+      const Wm = doc.internal.pageSize.getWidth(), Hm = doc.internal.pageSize.getHeight();
+      const cx = Wm / 2, cy = Hm / 2;
+      doc.saveGraphicsState();
+      doc.setDrawColor(205, 225, 250);
+      doc.setLineWidth(2.5);
+      doc.circle(cx, cy, 185, 'D');
+      doc.setLineWidth(1);
+      doc.circle(cx, cy, 163, 'D');
+      doc.setTextColor(205, 225, 250);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(150);
+      doc.text('V', cx, cy + 52, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(25);
+      doc.text('GUEST MODE', cx, cy + 118, { align: 'center' });
+      doc.restoreGraphicsState();
+    } catch (e) { }
+  }
+  doc.setFillColor(153, 27, 27);
+  doc.rect(0, 0, W, 104, 'F');
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, 100, W, 4, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(26);
+  doc.text('EXPORT IN GUEST', 40, 40);
+  doc.setFontSize(13);
+  doc.text('VERNOVA — Smart Sorting Factory Report', 40, 62);
+  doc.setFontSize(9);
+  doc.text('Generated: ' + fullTimestamp(new Date()), 40, 80);
+
+  const attempts = s.total + s.gagal;
+  const errRate = attempts > 0 ? ((s.gagal / attempts) * 100).toFixed(1) + '%' : '0.0%';
+  const sectionTitle = (txt, y) => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(29, 78, 216);
+    doc.text(txt, 40, y);
+  };
+  sectionTitle('1. SORTING SUMMARY', 128);
+  doc.autoTable({
+    startY: 134,
+    head: [['Total Processed', 'Yellow', 'Blue', 'Red', 'Error', 'Success Rate']],
+    body: [[s.total, s.kuning, s.biru, s.merah, s.gagal, s.rate + '%']],
+    theme: 'grid',
+    headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 9, halign: 'center', fontStyle: 'bold' },
+    bodyStyles: { fontSize: 11, halign: 'center', fontStyle: 'bold', textColor: [30, 41, 59] },
+    margin: { left: 40, right: 40 },
+    didDrawPage: () => { drawWatermark(); }
+  });
+  sectionTitle('2. ERROR SUMMARY', (doc.lastAutoTable ? doc.lastAutoTable.finalY : 160) + 24);
+  doc.autoTable({
+    startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 160) + 30,
+    head: [['Error', 'Error Rate', 'Total Attempts']],
+    body: [[s.gagal + 'x error', errRate, attempts]],
+    theme: 'grid',
+    headStyles: { fillColor: [153, 27, 27], textColor: 255, fontSize: 9, halign: 'center', fontStyle: 'bold' },
+    bodyStyles: { fontSize: 11, halign: 'center', fontStyle: 'bold', textColor: [153, 27, 27], fillColor: [254, 226, 226] },
+    margin: { left: 40, right: 40 },
+    didDrawPage: () => { drawWatermark(); }
+  });
+  const body = state.exportLogs.map((r, i) => {
+    const meta = colorMeta(r.warna);
+    const tc = hexToRgb(meta.text);
+    return [
+      { content: i + 1, styles: { fillColor: meta.rgb, textColor: tc } },
+      { content: safeCell(r.timestamp), styles: { fillColor: meta.rgb, textColor: tc } },
+      { content: safeCell(localColor(r.warna)), styles: { fillColor: meta.rgb, textColor: tc } },
+      { content: safeCell(r.mode), styles: { fillColor: meta.rgb, textColor: tc } },
+      { content: safeCell(r.status), styles: { fillColor: meta.rgb, textColor: tc } },
+      { content: r.nilai, styles: { fillColor: meta.rgb, textColor: tc } }
+    ];
+  });
+  sectionTitle('3. DETAILED SORTING LOG', (doc.lastAutoTable ? doc.lastAutoTable.finalY : 160) + 24);
+  doc.autoTable({
+    startY: (doc.lastAutoTable ? doc.lastAutoTable.finalY : 160) + 30,
+    head: [['No', 'Timestamp (YYYY-MM-DD HH:MM:SS)', 'Color', 'Mode', 'Status', 'Value']],
+    body: body.length ? body : [[{ content: 'No data recorded', colSpan: 6, styles: { halign: 'center', textColor: [120, 130, 150] } }]],
+    theme: 'grid',
+    headStyles: { fillColor: [30, 58, 138], textColor: 255, fontSize: 8, halign: 'center' },
+    bodyStyles: { fontSize: 8, halign: 'center', textColor: [30, 41, 59] },
+    columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 118 }, 2: { cellWidth: 62 }, 3: { cellWidth: 58 }, 4: { cellWidth: 110 }, 5: { cellWidth: 40 } },
+    margin: { left: 40, right: 40 },
+    didDrawPage: () => {
+      drawWatermark();
+      const H = doc.internal.pageSize.getHeight();
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text('VERNOVA GUEST — Smart Sorting System', 40, H - 20);
+      doc.text('Page ' + doc.internal.getNumberOfPages(), W - 70, H - 20);
+    }
+  });
+  doc.save(`VERNOVA_GUEST_Report_${timestampTag()}.pdf`);
+  showToast('PDF guest berhasil diunduh!');
+}
+
+async function exportDOCX() {
+  const D = window.docx;
+  if (!D) return showToast('Library DOCX belum termuat.');
+  if (!hasExportData()) return noDataToast();
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, ShadingType, BorderStyle, Header } = D;
+  const s = getSummary();
+  const rows = state.exportLogs;
+  const attempts = s.total + s.gagal;
+  const errRate = attempts > 0 ? ((s.gagal / attempts) * 100).toFixed(1) + '%' : '0.0%';
+  const para = (text, opts = {}) => new Paragraph({
+    alignment: opts.align || AlignmentType.LEFT,
+    spacing: { after: opts.after !== undefined ? opts.after : 120 },
+    children: [new TextRun({ text: String(text), bold: !!opts.bold, size: opts.size || 20, color: opts.color || '1E293B', italics: !!opts.italics })]
+  });
+  const thinBorder = { style: BorderStyle.SINGLE, size: 4, color: 'CBD5E1' };
+  const cellBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+  const headCell = (text, fill = '1E3A8A') => new TableCell({
+    shading: { type: ShadingType.CLEAR, color: 'auto', fill },
+    margins: { top: 90, bottom: 90, left: 110, right: 110 },
+    borders: cellBorders,
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(text), bold: true, color: 'FFFFFF', size: 18 })] })]
+  });
+  const dataCell = (text, fill, color = '1E293B', align = AlignmentType.CENTER) => new TableCell({
+    shading: fill ? { type: ShadingType.CLEAR, color: 'auto', fill } : undefined,
+    margins: { top: 70, bottom: 70, left: 110, right: 110 },
+    borders: cellBorders,
+    children: [new Paragraph({ alignment: align, children: [new TextRun({ text: String(text), size: 18, color })] })]
+  });
+  const summaryRows = [
+    new TableRow({ children: [headCell('Total Processed'), headCell('Yellow'), headCell('Blue'), headCell('Red'), headCell('Error', '991B1B'), headCell('Success Rate')] }),
+    new TableRow({ children: [dataCell(s.total, 'E0E7FF', '1D4ED8'), dataCell(s.kuning, 'FEF3C7', '92400E'), dataCell(s.biru, 'DBEAFE', '1E40AF'), dataCell(s.merah, 'FEE2E2', '991B1B'), dataCell(s.gagal, 'FEE2E2', '991B1B'), dataCell(s.rate + '%', 'DCFCE7', '166534')] })
+  ];
+  const errorRows = [
+    new TableRow({ children: [headCell('Error', '991B1B'), headCell('Error Rate', '991B1B'), headCell('Total Attempts', '991B1B')] }),
+    new TableRow({ children: [dataCell(s.gagal + 'x error', 'FEE2E2', '991B1B'), dataCell(errRate, 'FEE2E2', '991B1B'), dataCell(attempts, 'F1F5F9', '475569')] })
+  ];
+  const detailRows = [
+    new TableRow({ tableHeader: true, children: ['No', 'Timestamp (YYYY-MM-DD HH:MM:SS)', 'Color', 'Mode', 'Status', 'Value'].map(t => headCell(t)) })
+  ];
+  if (!rows.length) {
+    detailRows.push(new TableRow({ children: new TableCell({ columnSpan: 6, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'No data recorded', italics: true, color: '94A3B8', size: 18 })] })] }) }));
+  } else {
+    rows.forEach((r, i) => {
+      const meta = colorMeta(r.warna);
+      detailRows.push(new TableRow({ children: [dataCell(i + 1, meta.fill, meta.text), dataCell(safeCell(r.timestamp), meta.fill, meta.text), dataCell(safeCell(localColor(r.warna)), meta.fill, meta.text), dataCell(safeCell(r.mode), meta.fill, meta.text), dataCell(safeCell(r.status), meta.fill, meta.text), dataCell(r.nilai, meta.fill, meta.text)] }));
+    });
+  }
+  const guestHeader = (typeof Header !== 'undefined') ? {
+    default: new Header({
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: 'GUEST MODE • VERNOVA Guest Export — read-only', size: 16, color: '8FA9D6', font: 'Arial' })]
+      })]
+    })
+  } : undefined;
+  const doc = new Document({
+    creator: 'VERNOVA Guest',
+    title: 'VERNOVA Guest Report — EXPORT IN GUEST',
+    background: { color: 'F2F7FF' },
+    sections: [{
+      properties: { page: { margin: { top: 900, bottom: 900, left: 900, right: 900 } } },
+      ...(guestHeader ? { headers: guestHeader } : {}),
+      children: [
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [new TextRun({ text: 'EXPORT IN GUEST', bold: true, size: 56, color: '991B1B', font: 'Arial' })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [new TextRun({ text: 'VERNOVA', bold: true, size: 64, color: '1D4ED8', font: 'Arial' })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [new TextRun({ text: 'SMART SORTING FACTORY — GUEST PRODUCTION REPORT', bold: true, size: 20, color: '0F172A' })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 320 }, border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: '1E3A8A', space: 6 } }, children: [new TextRun({ text: 'Generated: ' + fullTimestamp(new Date()), size: 18, color: '64748B' })] }),
+        para('1. SORTING SUMMARY', { bold: true, size: 26, color: '1D4ED8', after: 160 }),
+        new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: summaryRows }),
+        para('', { after: 260 }),
+        para('2. ERROR SUMMARY', { bold: true, size: 26, color: '991B1B', after: 160 }),
+        new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: errorRows }),
+        para('', { after: 260 }),
+        para('3. DETAILED SORTING LOG', { bold: true, size: 26, color: '1D4ED8', after: 160 }),
+        new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: detailRows }),
+        para('', { after: 300 }),
+        new Paragraph({ alignment: AlignmentType.CENTER, border: { top: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1', space: 8 } }, children: [new TextRun({ text: 'VERNOVA GUEST — Hamzah Aufa Ibrahim · Muhammad Alif Al Hafidz · Naufal Ahmad Bilal', size: 16, color: '94A3B8' })] })
+      ]
+    }]
+  });
+  try {
+    const blob = await Packer.toBlob(doc);
+    downloadBlob(blob, `VERNOVA_GUEST_Report_${timestampTag()}.docx`);
+    showToast('Word guest berhasil diunduh!');
+  } catch (e) { console.error(e); showToast('Gagal membuat DOCX.'); }
+}
+
+window.doExport = async (type) => {
+  window.closeModal('export-modal');
+  await new Promise(r => setTimeout(r, 180));
+  try {
+    if (type === 'xlsx') exportXLSX();
+    else if (type === 'pdf') exportPDF();
+    else exportCSV();
+  } catch (e) { console.error(e); showToast('Export error: ' + e.message); }
+};
+
+(function boot() {
+  try {
+    const lt = localStorage.getItem('vernova_guest_theme'); if (lt === 'dark') document.documentElement.classList.add('dark');
+    const ll = localStorage.getItem('vernova_guest_lang'); if (ll === 'id' || ll === 'en') state.lang = ll;
+  } catch (e) { }
+  applyLang();
+  initChart();
+  updateUIStats();
+  window.connectFB();
+})();
+</script>
+</body>
+</html>
