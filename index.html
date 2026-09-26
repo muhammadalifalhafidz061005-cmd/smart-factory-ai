@@ -3,9 +3,11 @@
   <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#1d4ed8">
-  <meta name="description" content="VERNOVA — Smart Sorting Factory Dashboard. Real-time object sorting analytics, mobile drawer menu, desktop sidebar navigation.">
-  <title>VERNOVA · Smart Sorting Dashboard</title>
+<meta name="theme-color" content="#1d4ed8">
+<meta name="description" content="VERNOVA — Smart Sorting Factory Dashboard. Real-time object sorting analytics, mobile drawer menu, desktop sidebar navigation.">
+<link rel="icon" type="image/jpeg" href="vernova.jpeg">
+<link rel="apple-touch-icon" href="vernova.jpeg">
+<title>VERNOVA · Smart Sorting Dashboard</title>
 
   <!-- ================= DEPENDENCIES ================= -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -16,13 +18,12 @@
 
   <!-- TensorFlow.js + Teachable Machine -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 
-  <!-- Rich Export Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<!-- Rich Export Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
   <style>
   /* ================= THEME TOKENS ================= */
@@ -408,6 +409,12 @@
   .export-tile span{font-size:.78rem;font-weight:700;}
   .export-tile small{font-size:.58rem;color:var(--muted);font-weight:600;letter-spacing:.04em;}
   .export-tile:hover{transform:translateY(-2px);border-color:#bfdbfe;}
+  @keyframes tileIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+  .modal.open .export-tile{animation:tileIn .35s ease-out both;}
+  .modal.open .export-tile:nth-child(2){animation-delay:.06s;}
+  .modal.open .export-tile:nth-child(3){animation-delay:.12s;}
+  .modal.open .export-tile:nth-child(4){animation-delay:.18s;}
+  .metric-value,.font-mono{font-variant-numeric:tabular-nums;}
 
   .live-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:pulse 2s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.55)}70%{box-shadow:0 0 0 10px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
@@ -430,6 +437,25 @@
   }
   @media(max-width:639px){.toast-inner{width:100%;justify-content:flex-start;}}
 
+  /* ================= LOGIN GATE ================= */
+  #login-gate{
+    position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;
+    padding:1rem;background:var(--bg);
+    transition:opacity .3s ease;
+  }
+  #login-gate.hide{opacity:0;pointer-events:none;}
+  #login-gate.hide .login-card{transform:translateY(10px) scale(.98);}
+  .login-card{
+    width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);
+    border-radius:1.25rem;box-shadow:var(--shadow);padding:2rem 1.5rem;text-align:center;
+    transition:transform .3s ease;
+    animation:modalIn .35s ease-out both;
+  }
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+  .login-card.shake{animation:shake .3s ease;}
+  #login-err{display:none;color:#dc2626;font-size:11px;font-weight:700;margin-top:.6rem;}
+  #login-err.show{display:block;}
+
   ::-webkit-scrollbar{width:8px;height:8px;}
   ::-webkit-scrollbar-track{background:transparent;}
   ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px;border:2px solid transparent;background-clip:content-box;}
@@ -443,14 +469,37 @@
   <body>
   <div class="orbs" aria-hidden="true"></div>
 
+  <!-- ===================== LOGIN GATE ===================== -->
+  <div id="login-gate" role="dialog" aria-label="Login VERNOVA">
+    <div class="login-card" id="login-card">
+      <img src="vernova.jpeg" alt="Logo VERNOVA" class="w-20 h-20 rounded-2xl mx-auto mb-3" style="object-fit:cover;border:1px solid var(--border)">
+      <p class="font-display font-extrabold text-xl">VERNOVA</p>
+      <p class="text-[11px] t-muted mt-1 mb-5" data-i18n="login.sub">Pilih cara masuk untuk melanjutkan.</p>
+
+      <button onclick="window.loginGuest()" class="btn-ghost w-full py-3 text-xs flex items-center justify-center gap-2 min-h-[46px]">
+        <i class="fas fa-eye"></i><span data-i18n="login.guest">Masuk sebagai Guest</span>
+      </button>
+
+      <div class="flex items-center gap-3 my-4">
+        <div class="h-px flex-1" style="background:var(--border)"></div>
+        <span class="text-[10px] font-bold t-muted">ATAU</span>
+        <div class="h-px flex-1" style="background:var(--border)"></div>
+      </div>
+
+      <input type="password" id="admin-pass" placeholder="Password admin..." class="inp mb-2.5 text-center" autocomplete="current-password" onkeydown="if(event.key==='Enter')window.loginAdmin()">
+      <button onclick="window.loginAdmin()" class="btn-primary w-full py-3 text-xs flex items-center justify-center gap-2 min-h-[46px]">
+        <i class="fas fa-lock"></i><span data-i18n="login.admin">Masuk Admin</span>
+      </button>
+      <p id="login-err" data-i18n="login.err">Password salah, coba lagi.</p>
+    </div>
+  </div>
+
   <div id="app-shell" class="pos-left">
 
     <!-- ===================== SIDEBAR ===================== -->
     <aside id="sidebar">
       <div class="flex items-center gap-3 px-1">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white" style="background:var(--brand)">
-          <i class="fas fa-robot"></i>
-        </div>
+        <img src="vernova.jpeg" alt="Logo VERNOVA" class="w-10 h-10 rounded-xl shrink-0" style="object-fit:cover;border:1px solid var(--border)">
         <div class="leading-tight">
           <p class="font-display font-extrabold text-[15px]">VERNOVA</p>
           <p class="text-[10px] font-semibold t-muted" data-i18n="brand.tag">Smart Sorting System</p>
@@ -487,9 +536,7 @@
         <button id="btn-menu" class="icon-btn" aria-label="Buka menu navigasi" aria-expanded="false" onclick="window.toggleDrawer(true)">
           <i class="fas fa-bars text-sm"></i>
         </button>
-        <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0 lg:hidden" style="background:var(--brand)">
-          <i class="fas fa-robot text-sm"></i>
-        </div>
+        <img src="vernova.jpeg" alt="Logo VERNOVA" class="w-9 h-9 rounded-lg shrink-0 lg:hidden" style="object-fit:cover;border:1px solid var(--border)">
 
         <div class="status-group" role="status" aria-label="Status koneksi">
           <div id="status-bt" class="pill">BT: OFFLINE</div>
@@ -515,9 +562,12 @@
             <i class="fas fa-xmark text-xs"></i>
           </button>
 
-          <button onclick="window.openModal('settings-modal')" class="icon-btn" title="Settings">
-            <i class="fas fa-gear text-xs"></i>
-          </button>
+        <button onclick="window.logoutAdmin()" class="icon-btn" title="Back to Home">
+          <i class="fas fa-house text-xs"></i>
+        </button>
+        <button onclick="window.openModal('settings-modal')" class="icon-btn" title="Settings">
+          <i class="fas fa-gear text-xs"></i>
+        </button>
         </div>
       </header>
 
@@ -750,7 +800,7 @@
     <!-- ===================== TOP BAR NAV (DESKTOP mode Atas) ===================== -->
     <nav id="bottombar" aria-label="Navigasi desktop mode atas">
       <div class="bottom-brand">
-        <div class="brand-logo"><i class="fas fa-robot"></i></div>
+        <img src="vernova.jpeg" alt="Logo VERNOVA" class="brand-logo" style="object-fit:cover;padding:0;border:1px solid var(--border)">
         <div class="brand-text">
           <span class="brand-name">VERNOVA</span>
           <span class="brand-sub" data-i18n="brand.tag">Smart Sorting System</span>
@@ -783,9 +833,7 @@
   <div id="drawer-backdrop" onclick="window.toggleDrawer(false)"></div>
   <aside id="mobile-drawer" aria-hidden="true" aria-label="Menu navigasi seluler">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0" style="background:var(--brand)">
-        <i class="fas fa-robot"></i>
-      </div>
+      <img src="vernova.jpeg" alt="Logo VERNOVA" class="w-10 h-10 rounded-xl shrink-0" style="object-fit:cover;border:1px solid var(--border)">
       <div class="leading-tight flex-1">
         <p class="font-display font-extrabold text-[15px]">VERNOVA</p>
         <p class="text-[10px] font-semibold t-muted" data-i18n="brand.tag">Smart Sorting System</p>
@@ -938,15 +986,12 @@
 
       <p class="text-[10px] font-black uppercase tracking-[.15em] t-muted mb-3" data-i18n="exp.choose">Choose a format</p>
 
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-3 gap-2 sm:gap-3">
         <button class="export-tile" onclick="window.doExport('xlsx')">
           <i class="fas fa-file-excel" style="color:#16a34a"></i><span>Excel</span><small>.XLSX · COLORED</small>
         </button>
         <button class="export-tile" onclick="window.doExport('pdf')">
           <i class="fas fa-file-pdf" style="color:#dc2626"></i><span>PDF</span><small>.PDF · PRINT READY</small>
-        </button>
-        <button class="export-tile" onclick="window.doExport('docx')">
-          <i class="fas fa-file-word" style="color:#2563eb"></i><span>Word</span><small>.DOCX · EDITABLE</small>
         </button>
         <button class="export-tile" onclick="window.doExport('csv')">
           <i class="fas fa-file-csv" style="color:#0891b2"></i><span>CSV</span><small>.CSV · RAW DATA</small>
@@ -1006,6 +1051,9 @@
 
   /* ------------------------------------------------------------------ */
   /*  STATE                                                              */
+  /* Password admin — ganti sesuai kebutuhan */
+  const ADMIN_PASS = "098765";
+
   /* Database bawaan — samakan guest, tanpa isi form */
   const FB_CONFIG = {
     apiKey: "AIzaSyAVwURHeateFtCSNuzLH69Gt3nkjXdEXzM",
@@ -1066,6 +1114,7 @@
       'set.barHint':'HP selalu memakai menu drawer (tombol ☰). Posisi Kiri/Kanan/Atas hanya berlaku di laptop/desktop ≥1024px.',
       'set.viewTeam':'Lihat Tim',
       'fb.title':'Connect to Database','fb.connect':'CONNECT TO DATABASE','fb.connected':'CONNECTED ✓','fb.hint':'Klik tombol di bawah sampai status FB berwarna hijau. Data & export diambil sepenuhnya dari database.',
+      'login.sub':'Pilih cara masuk untuk melanjutkan.','login.guest':'Masuk sebagai Guest','login.admin':'Masuk Admin','login.err':'Password salah, coba lagi.',
       'exp.title':'Ekspor Laporan','exp.choose':'Pilih format','exp.note':'Laporan mencakup header VERNOVA, ringkasan sortir, timestamp, dan baris berwarna.'
     },
     en: {
@@ -1095,6 +1144,7 @@
       'set.barHint':'Phones always use the drawer menu (☰ button). Left/Right/Top positions apply to laptop/desktop ≥1024px only.',
       'set.viewTeam':'View Team',
       'fb.title':'Connect to Database','fb.connect':'CONNECT TO DATABASE','fb.connected':'CONNECTED ✓','fb.hint':'Click the button below until the FB status turns green. Data & export come fully from the database.',
+      'login.sub':'Choose how to sign in.','login.guest':'Sign in as Guest','login.admin':'Sign in as Admin','login.err':'Wrong password, try again.',
       'exp.title':'Export Report','exp.choose':'Choose a format','exp.note':'Reports include the VERNOVA header, sorting summary, timestamps and colour-coded rows.'
     }
   };
@@ -2038,6 +2088,32 @@
   /* ================================================================== */
   /*  MODAL SYSTEM                                                       */
   /* ================================================================== */
+  /* Gerbang login: guest tanpa password, admin pakai password */
+  function hideGate() {
+    const g = $('login-gate');
+    if (g) g.classList.add('hide');
+  }
+  window.loginGuest = () => { window.location.href = 'guest.html'; };
+  window.logoutAdmin = () => {
+    try { sessionStorage.removeItem('vernova_admin_auth'); } catch (e) {}
+    const pw = $('admin-pass'); if (pw) pw.value = '';
+    const err = $('login-err'); if (err) err.classList.remove('show');
+    const g = $('login-gate');
+    if (g) g.classList.remove('hide');
+  };
+  window.loginAdmin = () => {
+    const v = ($('admin-pass') ? $('admin-pass').value : '');
+    if (v === ADMIN_PASS) {
+      try { sessionStorage.setItem('vernova_admin_auth', '1'); } catch (e) {}
+      const err = $('login-err'); if (err) err.classList.remove('show');
+      hideGate();
+      showToast(state.lang === 'id' ? 'Selamat datang, Admin!' : 'Welcome, Admin!');
+    } else {
+      const err = $('login-err'); if (err) err.classList.add('show');
+      const card = $('login-card');
+      if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+    }
+  };
   window.openModal = (id) => {
     const m = $(id); if (!m) return;
     if (id === 'export-modal') refreshExportSummary();
@@ -2749,7 +2825,6 @@
     try {
       if (type === 'xlsx') exportXLSX();
       else if (type === 'pdf') exportPDF();
-      else if (type === 'docx') await exportDOCX();
       else exportCSV();
     } catch (e) { console.error(e); showToast("Export error: " + e.message); }
   };
@@ -2764,6 +2839,7 @@
       const sb = localStorage.getItem('vernova_bar');
       if (sb === 'left' || sb === 'right' || sb === 'top') state.barPos = sb;
       else if (sb === 'bottom') state.barPos = 'top';
+      try { if (sessionStorage.getItem('vernova_admin_auth') === '1') hideGate(); } catch (e) {}
     } catch (e) {}
 
     applyTheme();
